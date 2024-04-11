@@ -104,6 +104,10 @@ target_link_libraries(ros_info_color_test ${catkin_LIBRARIES})
 #add_dependencies(px4_fw_controller prometheus_control_gencpp)
 #target_link_libraries(px4_fw_controller ${catkin_LIBRARIES})
 
+add_executable(test_arm src/Test/test_arm.cpp)
+add_dependencies(test_arm prometheus_control_gencpp)
+target_link_libraries(test_arm ${catkin_LIBRARIES})
+
 add_executable(px4_sender src/px4_sender.cpp)
 add_dependencies(px4_sender prometheus_control_gencpp)
 target_link_libraries(px4_sender ${catkin_LIBRARIES})
