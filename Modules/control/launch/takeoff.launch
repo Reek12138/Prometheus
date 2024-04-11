@@ -1,0 +1,7 @@
+<launch>
+    <node name="test_arm"
+          pkg="prometheus_control"  
+          type="test_arm"
+          output="screen">
+    </node>
+</launch>
