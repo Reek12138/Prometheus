@@ -15,7 +15,7 @@ def pose_publisher_line():
     pose_msg = ModelState()
     pose_msg.model_name = 'car_landing_pad'
     rate = rospy.Rate(100)
-    linear_vel = 1.0
+    linear_vel = 0.3
     time = 0.0
     while not rospy.is_shutdown():
         pos = -5 + time * linear_vel

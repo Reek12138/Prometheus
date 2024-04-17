@@ -28,7 +28,7 @@
 		<!-- 悬停模式 - 仅用于观察检测结果 -->
 		<param name="hold_mode" value="false" />
 		<!-- 是否使用降落板绝对高度 -->
-		<param name="use_pad_height" value="true" />
+		<param name="use_pad_height" value="false" />
 		<param name="pad_height" value="0.99" />
 		<!-- 起始点 -->
 		<param name="start_point_x" value="-4.0" />
@@ -39,15 +39,34 @@
 		<param name="camera_offset_y" value="0.0" />
 		<param name="camera_offset_z" value="-0.1" />
 		<!-- 追踪控制参数 -->
-		<param name="kpx_land" value="0.5" />
-		<param name="kpy_land" value="0.5" />
-		<param name="kpz_land" value="0.12" />
-		<param name="arm_height_to_ground" value="0.5" />
-		<param name="arm_distance_to_pad" value="0.6" />
+		<param name="kpx_land" value="0.6" />
+		<param name="kpy_land" value="0.6" />
+		<param name="kpz_land" value="0.1" />
+
+		<param name="kdx_land" value="1.0" />
+		<param name="kdy_land" value="1.0" />
+		<param name="kdz_land" value="0.1" />
+
+		<!-- 动态降落控制参数 -->
+		<param name="dynamic_kpx_land" value="1.0" />
+		<param name="dynamic_kpy_land" value="1.0" />
+		<param name="dynamic_kpz_land" value="0.1" />
+
+		<param name="dynamic_kdx_land" value="0.5" />
+		<param name="dynamic_kdy_land" value="0.5" />
+		<param name="dynamic_kdz_land" value="0.05" />
+
+		<param name="arm_height_to_ground" value="0.2" />
+		<param name="arm_distance_to_pad" value="0.5" />
 		<!-- 目标是否移动及其速度 -->
 		<param name="moving_target" value="true" />
 		<param name="target_vel_x" value="1.1" />
 		<param name="target_vel_y" value="0.0" />
+
+		<param name="average_velocity_time" value="0.2" />
+		<param name="D_time" value="0.1" />
+
+		<param name="k" value="0.2" />
 	</node>
 
 </launch>
