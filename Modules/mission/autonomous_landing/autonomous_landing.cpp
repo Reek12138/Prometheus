@@ -43,12 +43,37 @@ nav_msgs::Odometry GroundTruth;             // 降落板真实位置（仿真中
 Detection_result landpad_det;               // 检测结果
 //---------------------------------------Track---------------------------------------------
 float kp_land[3];         //控制参数 - 比例参数
+float kd_land[3];           //控制参数 - 微分参数
+
+float dynamic_kp_land[3];         //控制参数 - 比例参数
+float dynamic_kd_land[3];           //控制参数 - 微分参数
+
+
+Eigen::Vector3f last_tracking_position = Eigen::Vector3f::Zero();
+ros::Time last_tracking_time;
+Eigen::Vector3f velocity = Eigen::Vector3f::Zero();
+
+Eigen::Vector3f last_tracking_position2 = Eigen::Vector3f::Zero();
+ros::Time last_tracking_time2;
+Eigen::Vector3f velocity2 = Eigen::Vector3f::Zero();
+
+bool is_tracking_initialized = false;
+bool dynamic_tracking_initialized = false;
+
+double average_velocity_time;
+double D_time;
+
+float k;//速度补偿参数
+
+float dynamic_distance = 6.0;//切换动态降落的距离
+float dynamic_height = 5.0;//切换动态降落的高度
 
 // 五种状态机
 enum EXEC_STATE
 {
     WAITING_RESULT,
     TRACKING,
+    DYNAMIC_LANDING,
     LOST,
     LANDING,
 };
@@ -111,6 +136,24 @@ void landpad_det_cb(const prometheus_msgs::DetectionInfo::ConstPtr &msg)
         landpad_det.is_detected = true;
     }
 
+    // // 计算一段时间内相对速度
+    // if(is_tracking_initialized){
+    //     ros::Time current_time = ros::Time::now();
+    //     float dt = (current_time -  last_tracking_time).toSec();
+
+    //     if(dt >= average_velocity_time){
+    //         Eigen::Vector3f current_position = landpad_det.pos_body_enu_frame;
+    //         velocity = (current_position - last_tracking_position)/dt;
+
+    //         // 打印或处理速度
+    //         // ROS_INFO("Average Velocity (over last %f seconds): x=%f, y=%f, z=%f", dt, velocity.x(), velocity.y(), velocity.z());
+
+    //         // 更新上次位置和时间
+    //         last_tracking_position = current_position;
+    //         last_tracking_time = current_time;
+    //     }
+    // }
+
 }
 
 void drone_state_cb(const prometheus_msgs::DroneState::ConstPtr& msg)
@@ -135,6 +178,44 @@ void mission_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
     mission_cmd = *msg;
 }
 
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>my function>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// 计算一秒内目标的平均相对速度
+void timerCallback(const ros::TimerEvent&)
+{
+    if (is_tracking_initialized) {
+        ros::Time current_time = ros::Time::now();
+        float dt = (current_time - last_tracking_time).toSec();
+        ROS_INFO_STREAM("current_time:"<<current_time);
+        ROS_INFO_STREAM("last_time:"<<last_tracking_time);
+        if (dt > 0) {
+            Eigen::Vector3f current_position = landpad_det.pos_body_enu_frame;
+            velocity = (current_position - last_tracking_position) / dt;
+            ROS_INFO_STREAM("Current Position: " << current_position.transpose());
+            ROS_INFO_STREAM("Last Tracking Position: " << last_tracking_position.transpose());
+            ROS_INFO_STREAM("Delta Time (dt): " << dt);
+            ROS_INFO_STREAM("Velocity: " << velocity.transpose());
+            last_tracking_position = current_position;
+            last_tracking_time = current_time;
+        }
+    }
+}
+
+void D_cb(const ros::TimerEvent&){
+    if (is_tracking_initialized) {
+        ros::Time current_time2 = ros::Time::now();
+        float dt2 = (current_time2 - last_tracking_time2).toSec();
+        if (dt2 > 0) {
+            Eigen::Vector3f current_position2 = landpad_det.pos_body_enu_frame;
+            velocity = (current_position2 - last_tracking_position2) / dt2;
+            // ROS_INFO_STREAM("Current Position: " << current_position.transpose());
+            // ROS_INFO_STREAM("Last Tracking Position: " << last_tracking_position.transpose());
+            // ROS_INFO_STREAM("Delta Time (dt): " << dt);
+            // ROS_INFO_STREAM("Velocity: " << velocity.transpose());
+            last_tracking_position2 = current_position2;
+            last_tracking_time2 = current_time2;
+        }
+    }
+}
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>主函数<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 int main(int argc, char **argv)
 {
@@ -169,6 +250,13 @@ int main(int argc, char **argv)
 
     // 【发布】用于地面站显示的提示消息
     ros::Publisher message_pub = nh.advertise<prometheus_msgs::Message>("/prometheus/message/main", 10);
+
+    // 『定时器』 用于计算一段时间内目标的相对速度
+    ros::Timer T = nh.createTimer(ros::Duration(average_velocity_time), timerCallback);
+    // ros::Timer T = nh.createTimer(ros::Duration(1.0), timerCallback);
+
+    // 『定时器』用于计算d参数
+    ros::Timer T2 = nh.createTimer(ros::Duration(D_time),D_cb);
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>参数读取<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     
     //强制上锁高度
@@ -183,10 +271,25 @@ int main(int argc, char **argv)
     nh.param<bool>("use_pad_height", use_pad_height, false);
     nh.param<float>("pad_height", pad_height, 0.01);
 
-    //追踪控制参数
+    //追踪控制比例参数
     nh.param<float>("kpx_land", kp_land[0], 0.1);
     nh.param<float>("kpy_land", kp_land[1], 0.1);
     nh.param<float>("kpz_land", kp_land[2], 0.1);
+
+    //追踪控制积分参数
+    nh.param<float>("kdx_land", kd_land[0], 0.05);
+    nh.param<float>("kdy_land", kd_land[1], 0.05);
+    nh.param<float>("kdz_land", kd_land[2], 0.05);
+
+     //动态降落控制比例参数
+    nh.param<float>("dynamic_kpx_land", dynamic_kp_land[0], 0.1);
+    nh.param<float>("dynamic_kpy_land", dynamic_kp_land[1], 0.1);
+    nh.param<float>("dynamic_kpz_land", dynamic_kp_land[2], 0.1);
+
+    //动态降落积分参数
+    nh.param<float>("dynamic_kdx_land", dynamic_kd_land[0], 0.05);
+    nh.param<float>("dynamic_kdy_land", dynamic_kd_land[1], 0.05);
+    nh.param<float>("dynamic_kdz_land", dynamic_kd_land[2], 0.05);
 
     // 初始起飞点
     nh.param<float>("start_point_x", start_point[0], 0.0);
@@ -202,6 +305,11 @@ int main(int argc, char **argv)
     nh.param<bool>("moving_target", moving_target, false);
     nh.param<float>("target_vel_x", target_vel_xy[0], 0.0);
     nh.param<float>("target_vel_y", target_vel_xy[1], 0.0);
+
+    nh.param<double>("average_velocity_time",average_velocity_time,1.0);
+    nh.param<double>("average_velocity_time",D_time,0.2);
+
+    nh.param<float>("k",k,1);
 
     //打印现实检查参数
     printf_param();
@@ -295,8 +403,11 @@ int main(int argc, char **argv)
             if(exec_state == TRACKING)
             {
                 // 正常追踪
-                char message_chars[256];
-                sprintf(message_chars, "Tracking the Landing Pad, distance_to_the_pad :   %f [m] .", distance_to_pad);
+                char message_chars[512];
+                // char message_chars2[256];
+                // sprintf(message_chars, "Tracking the Landing Pad, distance_to_the_pad :   %f [m] .", distance_to_pad);
+                snprintf(message_chars, sizeof(message_chars), "Tracking the Landing Pad, distance_to_the_pad : %f [m] . Tracking the Landing Pad, target_velocity : %f [m/s] .", distance_to_pad, velocity.x());
+                // sprintf(message_chars2, "Tracking the Landing Pad, target_velocity :   %f [m/s] .", velocity);
                 message = message_chars;
                 cout << message <<endl;
                 pub_message(message_pub, prometheus_msgs::Message::WARN, NODE_NAME, message);
@@ -350,6 +461,113 @@ int main(int argc, char **argv)
             // 追踪状态
             case TRACKING:
             {
+                if (!is_tracking_initialized) {
+                    is_tracking_initialized = true;
+                    last_tracking_time = ros::Time::now();
+                    last_tracking_position = landpad_det.pos_body_enu_frame;
+
+                    last_tracking_time2 = ros::Time::now();
+                    last_tracking_position2 = landpad_det.pos_body_enu_frame;
+                }
+
+                // 丢失,进入LOST状态
+                if(!landpad_det.is_detected && !hold_mode)
+                {
+                    exec_state = LOST;
+                    message = "Lost the Landing Pad.";
+                    cout << message <<endl;
+                    pub_message(message_pub, prometheus_msgs::Message::WARN, NODE_NAME, message);
+                    break;
+                }   
+
+                // 抵达上锁点,进入LANDING
+                distance_to_pad = landpad_det.pos_body_enu_frame.norm();
+                // //　达到降落距离，上锁降落
+                // if(distance_to_pad < arm_distance_to_pad)
+                // {
+                //     exec_state = LANDING;
+                //     message = "Catched the Landing Pad.";
+                //     cout << message <<endl;
+                //     pub_message(message_pub, prometheus_msgs::Message::WARN, NODE_NAME, message);
+                //     break;
+                // }
+                // //　达到最低高度，上锁降落
+                // else if(abs(landpad_det.pos_body_enu_frame[2]) < arm_height_to_ground)
+                // {
+                //     exec_state = LANDING;
+                //     message = "Reach the lowest height.";
+                //     cout << message <<endl;
+                //     pub_message(message_pub, prometheus_msgs::Message::WARN, NODE_NAME, message);
+                //     break;
+                // }
+
+                if(distance_to_pad < dynamic_distance && abs(landpad_det.pos_body_enu_frame[2] ) < dynamic_height){
+                    exec_state = DYNAMIC_LANDING;
+                    message = "切换dynamic_landing";
+                    cout<<message<<endl;
+                    break;
+                }
+
+                // 机体系速度控制
+                Command_Now.header.stamp = ros::Time::now();
+                Command_Now.Command_ID   = Command_Now.Command_ID + 1;
+                Command_Now.source = NODE_NAME;
+                Command_Now.Mode = prometheus_msgs::ControlCommand::Move;
+                Command_Now.Reference_State.Move_frame = prometheus_msgs::PositionReference::ENU_FRAME;
+                Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XYZ_VEL;   //xy velocity z position
+                
+                // // 计算当前误差
+                // Eigen::Vector3f current_error = landpad_det.pos_body_enu_frame;
+
+                // // 计算微分项
+                // Eigen::Vector3f derivative;
+                // for (int i = 0; i < 3; i++) {
+                //     derivative[i] = (current_error[i] - last_error[i]);
+                // }
+                // last_error = current_error; // 更新上一周期的误差
+
+                for (int i=0; i<3; i++)
+                {
+                    // Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i];
+                    Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i] + kd_land[i] * velocity2[i];
+                }
+
+                // float target_vel[3];
+                // for(int i=0; i<3; i++){
+                //     // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
+                //     target_vel[i] = _DroneState.velocity[i] + velocity[i];
+                // }
+                
+                // if(moving_target )//这里简单加上目标速度效果并不好
+                // {
+                //     // Command_Now.Reference_State.velocity_ref[0] += 0.3 * target_vel_xy[0];
+                //     // Command_Now.Reference_State.velocity_ref[1] += 0.3 * target_vel_xy[1];
+                //     Command_Now.Reference_State.velocity_ref[0] += k * target_vel[0];
+                //     Command_Now.Reference_State.velocity_ref[1] += k * target_vel[1];
+                // }
+
+                Command_Now.Reference_State.yaw_ref             = 0.0;
+                //Publish
+
+                if (!hold_mode)
+                {
+                    command_pub.publish(Command_Now);
+                }
+
+                break;
+            }
+
+            case DYNAMIC_LANDING:
+            {
+                if (!dynamic_tracking_initialized) {
+                    dynamic_tracking_initialized = true;
+                    last_tracking_time = ros::Time::now();
+                    last_tracking_position = landpad_det.pos_body_enu_frame;
+
+                    last_tracking_time2 = ros::Time::now();
+                    last_tracking_position2 = landpad_det.pos_body_enu_frame;
+                }
+
                 // 丢失,进入LOST状态
                 if(!landpad_det.is_detected && !hold_mode)
                 {
@@ -389,16 +607,34 @@ int main(int argc, char **argv)
                 Command_Now.Reference_State.Move_frame = prometheus_msgs::PositionReference::ENU_FRAME;
                 Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XYZ_VEL;   //xy velocity z position
                 
+                // // 计算当前误差
+                // Eigen::Vector3f current_error = landpad_det.pos_body_enu_frame;
+
+                // // 计算微分项
+                // Eigen::Vector3f derivative;
+                // for (int i = 0; i < 3; i++) {
+                //     derivative[i] = (current_error[i] - last_error[i]);
+                // }
+                // last_error = current_error; // 更新上一周期的误差
+
                 for (int i=0; i<3; i++)
                 {
-                    Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i];
+                    // Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i];
+                    Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i] + kd_land[i] * velocity2[i];
                 }
 
-                //
-                if(moving_target)
+                float target_vel[3];
+                for(int i=0; i<3; i++){
+                    // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
+                    target_vel[i] = _DroneState.velocity[i] + velocity[i];
+                }
+                
+                if(moving_target)//这里简单加上目标速度效果并不好
                 {
-                    Command_Now.Reference_State.velocity_ref[0] += target_vel_xy[0];
-                    Command_Now.Reference_State.velocity_ref[1] += target_vel_xy[1];
+                    // Command_Now.Reference_State.velocity_ref[0] += 0.3 * target_vel_xy[0];
+                    // Command_Now.Reference_State.velocity_ref[1] += 0.3 * target_vel_xy[1];
+                    Command_Now.Reference_State.velocity_ref[0] += k * target_vel[0];
+                    Command_Now.Reference_State.velocity_ref[1] += k * target_vel[1];
                 }
 
                 Command_Now.Reference_State.yaw_ref             = 0.0;
@@ -411,6 +647,7 @@ int main(int argc, char **argv)
 
                 break;
             }
+
             case LOST:
             {
                 static int lost_time = 0;
@@ -419,6 +656,8 @@ int main(int argc, char **argv)
                 // 重新获得信息,进入TRACKING
                 if(landpad_det.is_detected)
                 {
+                    is_tracking_initialized = false;
+                    dynamic_tracking_initialized = false;
                     exec_state = TRACKING;
                     lost_time = 0;
                     message = "Regain the Landing Pad.";
@@ -470,8 +709,8 @@ int main(int argc, char **argv)
                     Command_Now.header.stamp = ros::Time::now();
                     Command_Now.Command_ID   = Command_Now.Command_ID + 1;
                     Command_Now.source = NODE_NAME;
-                    // Command_Now.Mode = prometheus_msgs::ControlCommand::Disarm; // 新飞控不支持直接上锁,会变成返航模式
-                    Command_Now.Mode = prometheus_msgs::ControlCommand::Land;
+                    Command_Now.Mode = prometheus_msgs::ControlCommand::Disarm; // 新飞控不支持直接上锁,会变成返航模式
+                    // Command_Now.Mode = prometheus_msgs::ControlCommand::Land;
                     command_pub.publish(Command_Now);
                 }else
                 {
