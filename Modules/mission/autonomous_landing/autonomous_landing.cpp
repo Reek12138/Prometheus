@@ -17,6 +17,8 @@
 
 #include "mission_utils.h"
 #include "message_utils.h"
+#include "nmpc_ctr_2.h"
+
 
 using namespace std;
 using namespace Eigen;
@@ -65,8 +67,17 @@ double D_time;
 
 float k;//速度补偿参数
 
-float dynamic_distance = 6.0;//切换动态降落的距离
-float dynamic_height = 5.0;//切换动态降落的高度
+float dynamic_distance ;//切换动态降落的距离
+float dynamic_height ;//切换动态降落的高度
+
+Eigen::Vector3f current_states;//无人机当前xy和yaw
+Eigen::Vector3f landing_pad_states;//landing_pad当前xy和yaw
+
+float true_target_vel[2];//测试用,目标速度真值
+
+// 视觉检测目标速度计算变量
+Eigen::Vector3f vel_sum(0.0, 0.0, 0.0);
+int num = 0;
 
 // 五种状态机
 enum EXEC_STATE
@@ -186,14 +197,18 @@ void timerCallback(const ros::TimerEvent&)
         ros::Time current_time = ros::Time::now();
         float dt = (current_time - last_tracking_time).toSec();
         ROS_INFO_STREAM("current_time:"<<current_time);
-        ROS_INFO_STREAM("last_time:"<<last_tracking_time);
+        // ROS_INFO_STREAM("last_time:"<<last_tracking_time);
         if (dt > 0) {
             Eigen::Vector3f current_position = landpad_det.pos_body_enu_frame;
             velocity = (current_position - last_tracking_position) / dt;
+            // vel_sum += velocity;
+            // num +=1;
+            // Eigen::Vector3f ave_velocity = vel_sum/num;
             ROS_INFO_STREAM("Current Position: " << current_position.transpose());
-            ROS_INFO_STREAM("Last Tracking Position: " << last_tracking_position.transpose());
-            ROS_INFO_STREAM("Delta Time (dt): " << dt);
+            // ROS_INFO_STREAM("Last Tracking Position: " << last_tracking_position.transpose());
+            // ROS_INFO_STREAM("Delta Time (dt): " << dt);
             ROS_INFO_STREAM("Velocity: " << velocity.transpose());
+            // ROS_INFO_STREAM("Ave_Velocity: " << ave_velocity.transpose());
             last_tracking_position = current_position;
             last_tracking_time = current_time;
         }
@@ -215,6 +230,34 @@ void D_cb(const ros::TimerEvent&){
             last_tracking_time2 = current_time2;
         }
     }
+}
+
+void odom_cb(const nav_msgs::Odometry::ConstPtr& msg){
+    double x,y,z;
+    double roll,pitch,yaw;
+    x = msg->pose.pose.position.x;
+    y = msg->pose.pose.position.y;
+    z = msg->pose.pose.position.z;
+    //四元数转欧拉角
+    tf::Quaternion quat;                                     //定义一个四元数
+    tf::quaternionMsgToTF(msg->pose.pose.orientation, quat); //取出方向存储于四元数
+    tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);
+
+    current_states << x,y,yaw;
+}
+
+void landing_pad_cb(const nav_msgs::Odometry::ConstPtr& msg){
+    double x,y,z;
+    double roll,pitch,yaw;
+    x = msg->pose.pose.position.x;
+    y = msg->pose.pose.position.y;
+    z = msg->pose.pose.position.z;
+    //四元数转欧拉角
+    tf::Quaternion quat;                                     //定义一个四元数
+    tf::quaternionMsgToTF(msg->pose.pose.orientation, quat); //取出方向存储于四元数
+    tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);
+
+    landing_pad_states << x,y,yaw;
 }
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>主函数<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 int main(int argc, char **argv)
@@ -257,6 +300,17 @@ int main(int argc, char **argv)
 
     // 『定时器』用于计算d参数
     ros::Timer T2 = nh.createTimer(ros::Duration(D_time),D_cb);
+
+    // 【订阅】无人机的odom
+    ros::Subscriber odom_listener = nh.subscribe<nav_msgs::Odometry>("/prometheus/drone_odom",10,odom_cb);
+
+    //【订阅】地面真值，此信息仅做比较使用 不强制要求提供
+    ros::Subscriber groundtruth_sub2 = nh.subscribe<nav_msgs::Odometry>("/ground_truth/landing_pad", 10, landing_pad_cb);
+
+    //【控制器】NMPC控制器
+    int predict_step = 50;
+    float sample_time = 0.1;
+    NMPC nmpc_ctr(predict_step, sample_time);
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>参数读取<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     
     //强制上锁高度
@@ -310,6 +364,12 @@ int main(int argc, char **argv)
     nh.param<double>("average_velocity_time",D_time,0.2);
 
     nh.param<float>("k",k,1);
+
+    nh.param<float>("dynamic_distance",dynamic_distance,3.0);//切换动态降落的距离
+    nh.param<float>("dynamic_height",dynamic_height,3.0);//切换动态降落的距离
+    
+    nh.param<float>("true_target_vel_x",true_target_vel[0],1.0);//测试用,目标x方向速度
+    nh.param<float>("true_target_vel_y",true_target_vel[1],1.0);//测试用,目标x方向速度
 
     //打印现实检查参数
     printf_param();
@@ -502,6 +562,7 @@ int main(int argc, char **argv)
                 // }
 
                 if(distance_to_pad < dynamic_distance && abs(landpad_det.pos_body_enu_frame[2] ) < dynamic_height){
+                // if(velocity[0]<0.05 && velocity[1]<0.05){
                     exec_state = DYNAMIC_LANDING;
                     message = "切换dynamic_landing";
                     cout<<message<<endl;
@@ -509,12 +570,12 @@ int main(int argc, char **argv)
                 }
 
                 // 机体系速度控制
-                Command_Now.header.stamp = ros::Time::now();
-                Command_Now.Command_ID   = Command_Now.Command_ID + 1;
-                Command_Now.source = NODE_NAME;
-                Command_Now.Mode = prometheus_msgs::ControlCommand::Move;
-                Command_Now.Reference_State.Move_frame = prometheus_msgs::PositionReference::ENU_FRAME;
-                Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XYZ_VEL;   //xy velocity z position
+                // Command_Now.header.stamp = ros::Time::now();
+                // Command_Now.Command_ID   = Command_Now.Command_ID + 1;
+                // Command_Now.source = NODE_NAME;
+                // Command_Now.Mode = prometheus_msgs::ControlCommand::Move;
+                // Command_Now.Reference_State.Move_frame = prometheus_msgs::PositionReference::ENU_FRAME;
+                // Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XYZ_VEL;   //xy velocity z position
                 
                 // // 计算当前误差
                 // Eigen::Vector3f current_error = landpad_det.pos_body_enu_frame;
@@ -526,11 +587,11 @@ int main(int argc, char **argv)
                 // }
                 // last_error = current_error; // 更新上一周期的误差
 
-                for (int i=0; i<3; i++)
-                {
-                    // Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i];
-                    Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i] + kd_land[i] * velocity2[i];
-                }
+                // for (int i=0; i<3; i++)
+                // {
+                //     // Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i];
+                //     Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i] + kd_land[i] * velocity2[i];
+                // }
 
                 // float target_vel[3];
                 // for(int i=0; i<3; i++){
@@ -546,13 +607,55 @@ int main(int argc, char **argv)
                 //     Command_Now.Reference_State.velocity_ref[1] += k * target_vel[1];
                 // }
 
-                Command_Now.Reference_State.yaw_ref             = 0.0;
+                // Command_Now.Reference_State.yaw_ref             = 0.0;
                 //Publish
+
+                //【 调用nmpc求解】>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                Eigen::Vector3f goal_state ;
+                goal_state[0] = -landpad_det.pos_body_enu_frame[0];
+                goal_state[1] = landpad_det.pos_body_enu_frame[1];
+                goal_state[2] = atan2(landpad_det.pos_body_enu_frame[1], -landpad_det.pos_body_enu_frame[0]);
+                // nmpc_ctr.set_goal_states(goal_state);
+                nmpc_ctr.set_goal_states(landing_pad_states);
+                
+                Eigen::Vector3f current_states2;
+                current_states2 << 0,0,0;
+                nmpc_ctr.opti_solution(current_states);
+
+                Eigen::Vector2f nmpc_controls = nmpc_ctr.get_controls();
+
+                Command_Now.header.stamp = ros::Time::now();
+                Command_Now.Command_ID = Command_Now.Command_ID + 1;
+                Command_Now.source = "nmpc_control";
+                Command_Now.Mode = prometheus_msgs::ControlCommand::Move;
+                Command_Now.Reference_State.Move_frame = prometheus_msgs::PositionReference::BODY_FRAME;
+                Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XYZ_VEL;
+                // xy轴采用mpc
+                Command_Now.Reference_State.velocity_ref[0] = nmpc_controls[0];
+                Command_Now.Reference_State.yaw_ref = nmpc_controls[1];
+                // z轴采用pd
+                Command_Now.Reference_State.velocity_ref[2] = kp_land[2] * landpad_det.pos_body_enu_frame[2] + kd_land[2] * velocity2[2];
 
                 if (!hold_mode)
                 {
                     command_pub.publish(Command_Now);
                 }
+
+
+                float target_vel[3];
+                for(int i=0; i<3; i++){
+                    // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
+                    target_vel[i] = _DroneState.velocity[i] + velocity[i];
+                    vel_sum[i] +=target_vel[i];
+                }
+                num +=1;
+                Eigen::Vector3f ave_target_vel = vel_sum/num;
+
+                ROS_INFO("Drone velocity X: %f, Y: %f", _DroneState.velocity[0], _DroneState.velocity[1]);
+                ROS_INFO("Target velocity X: %f, Y: %f", target_vel[0], target_vel[1]);
+                ROS_INFO("ave_Target velocity X: %f, Y: %f",ave_target_vel[0], ave_target_vel[1]);
+                ROS_INFO("-----------------------Tracking---------------------------------");
+
 
                 break;
             }
@@ -616,25 +719,38 @@ int main(int argc, char **argv)
                 //     derivative[i] = (current_error[i] - last_error[i]);
                 // }
                 // last_error = current_error; // 更新上一周期的误差
-
+                // landpad_det.pos_body_enu_frame[0] = -landpad_det.pos_body_enu_frame[0];
+                // landpad_det.pos_body_enu_frame[1] = -landpad_det.pos_body_enu_frame[1];
                 for (int i=0; i<3; i++)
                 {
                     // Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i];
-                    Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i] + kd_land[i] * velocity2[i];
+                    Command_Now.Reference_State.velocity_ref[i] = dynamic_kp_land[i] * landpad_det.pos_body_enu_frame[i] + dynamic_kd_land[i] * velocity2[i];
                 }
 
                 float target_vel[3];
                 for(int i=0; i<3; i++){
                     // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
                     target_vel[i] = _DroneState.velocity[i] + velocity[i];
+                    vel_sum[i] +=target_vel[i];
                 }
-                
+                num +=1;
+                Eigen::Vector3f ave_target_vel = vel_sum/num;
+                ROS_INFO("Drone velocity X: %f, Y: %f", _DroneState.velocity[0], _DroneState.velocity[1]);
+                ROS_INFO("Target velocity X: %f, Y: %f", target_vel[0], target_vel[1]);
+                ROS_INFO("ave_Target velocity X: %f, Y: %f",ave_target_vel[0], ave_target_vel[1]);
+                ROS_INFO("---------------------Dynamic landing-----------------------------------");
+
                 if(moving_target)//这里简单加上目标速度效果并不好
                 {
                     // Command_Now.Reference_State.velocity_ref[0] += 0.3 * target_vel_xy[0];
                     // Command_Now.Reference_State.velocity_ref[1] += 0.3 * target_vel_xy[1];
-                    Command_Now.Reference_State.velocity_ref[0] += k * target_vel[0];
-                    Command_Now.Reference_State.velocity_ref[1] += k * target_vel[1];
+                    Command_Now.Reference_State.velocity_ref[0] += k * ave_target_vel[0];
+                    Command_Now.Reference_State.velocity_ref[1] += k * ave_target_vel[1];
+                }
+
+                if(!moving_target){
+                    Command_Now.Reference_State.velocity_ref[0] += k * true_target_vel[0];
+                    Command_Now.Reference_State.velocity_ref[1] += k * true_target_vel[1];
                 }
 
                 Command_Now.Reference_State.yaw_ref             = 0.0;
