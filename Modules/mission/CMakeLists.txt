@@ -123,10 +123,15 @@ add_executable(waypoint_tracking waypoint_tracking/waypoint_tracking.cpp)
 add_dependencies(waypoint_tracking prometheus_mission_gencpp)
 target_link_libraries(waypoint_tracking ${catkin_LIBRARIES})
 
-add_executable(autonomous_landing autonomous_landing/autonomous_landing.cpp autonomous_landing/nmpc_ctr_2.cpp)
+add_executable(autonomous_landing autonomous_landing/autonomous_landing.cpp autonomous_landing/nmpc_ctr.cpp)
 add_dependencies(autonomous_landing prometheus_mission_gencpp)
 target_link_libraries(autonomous_landing ${catkin_LIBRARIES})
 target_link_libraries(autonomous_landing /usr/local/lib/libcasadi.so.3.6) 
+
+add_executable(autonomous_landing_2 autonomous_landing/autonomous_landing_2.cpp autonomous_landing/nmpc_ctr_2.cpp)
+add_dependencies(autonomous_landing_2 prometheus_mission_gencpp)
+target_link_libraries(autonomous_landing_2 ${catkin_LIBRARIES})
+target_link_libraries(autonomous_landing_2 /usr/local/lib/libcasadi.so.3.6) 
 
 add_executable(autonomous_landing_aruco autonomous_landing/autonomous_landing_aruco.cpp)
 add_dependencies(autonomous_landing_aruco prometheus_mission_gencpp)

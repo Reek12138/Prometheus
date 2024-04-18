@@ -15,7 +15,7 @@ def pose_publisher_line():
     pose_msg = ModelState()
     pose_msg.model_name = 'car_landing_pad'
     rate = rospy.Rate(100)
-    linear_vel = 0.5
+    linear_vel = 0.3
     time = 0.0
     while not rospy.is_shutdown():
         pos = -5 + time * linear_vel
@@ -39,7 +39,7 @@ def pose_publisher_circle():
     pose_msg = ModelState()
     pose_msg.model_name = 'car_landing_pad'
     rate = rospy.Rate(100)
-    linear_vel = 0.5
+    linear_vel = 0.3
     circle_radius = 3.0
     omega = math.fabs(linear_vel / circle_radius)
     time = 0.0
