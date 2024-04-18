@@ -48,25 +48,32 @@
 		<param name="kdz_land" value="0.1" />
 
 		<!-- 动态降落控制参数 -->
-		<param name="dynamic_kpx_land" value="1.0" />
-		<param name="dynamic_kpy_land" value="1.0" />
-		<param name="dynamic_kpz_land" value="0.1" />
+		<param name="dynamic_kpx_land" value="0.8" />
+		<param name="dynamic_kpy_land" value="0.8" />
+		<param name="dynamic_kpz_land" value="0.12" />
 
-		<param name="dynamic_kdx_land" value="0.5" />
-		<param name="dynamic_kdy_land" value="0.5" />
-		<param name="dynamic_kdz_land" value="0.05" />
+		<param name="dynamic_kdx_land" value="0.0" />
+		<param name="dynamic_kdy_land" value="0.0" />
+		<param name="dynamic_kdz_land" value="0.0" />
 
 		<param name="arm_height_to_ground" value="0.2" />
-		<param name="arm_distance_to_pad" value="0.5" />
+		<param name="arm_distance_to_pad" value="0.3" />
 		<!-- 目标是否移动及其速度 -->
-		<param name="moving_target" value="true" />
+		<param name="moving_target" value="true" /><!--true for sim, false for test-->
 		<param name="target_vel_x" value="1.1" />
 		<param name="target_vel_y" value="0.0" />
 
-		<param name="average_velocity_time" value="0.2" />
-		<param name="D_time" value="0.1" />
+		<param name="average_velocity_time" value="0.02" />
+		<param name="D_time" value="0.01" />
 
-		<param name="k" value="0.2" />
+		<param name="k" value="1.1" />
+		<param name="dynamic_distance" value="1.0" /><!--切换动态降落的距离-->
+		<param name="dynamic_height" value="0.8" /><!--切换动态降落的距离-->
+
+		<param name="true_target_vel_x" value="0.3" /><!--测试用,目标速度真值x-->
+		<param name="true_target_vel_y" value="0.0" /><!--测试用,目标速度真值y-->
+
+
 	</node>
 
 </launch>
