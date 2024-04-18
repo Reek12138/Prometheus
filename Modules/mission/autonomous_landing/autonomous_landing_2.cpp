@@ -17,7 +17,7 @@
 
 #include "mission_utils.h"
 #include "message_utils.h"
-#include "nmpc_ctr.h"
+#include "nmpc_ctr_2.h"
 
 
 using namespace std;
@@ -66,13 +66,12 @@ double average_velocity_time;
 double D_time;
 
 float k;//速度补偿参数
-float k2;//距离补偿参数TODO:这里视觉测距和真实测距有成倍的误差
 
 float dynamic_distance ;//切换动态降落的距离
 float dynamic_height ;//切换动态降落的高度
 
-Eigen::Vector2f current_states;//无人机当前xy
-Eigen::Vector2f landing_pad_states;//landing_pad当前xy
+Eigen::Vector3f current_states;//无人机当前xy和yaw
+Eigen::Vector3f landing_pad_states;//landing_pad当前xy和yaw
 
 float true_target_vel[2];//测试用,目标速度真值
 
@@ -205,9 +204,7 @@ void timerCallback(const ros::TimerEvent&)
             // vel_sum += velocity;
             // num +=1;
             // Eigen::Vector3f ave_velocity = vel_sum/num;
-            ROS_INFO_STREAM("Current dist Position: " << current_position.transpose());
-            ROS_INFO_STREAM("Current drone Position: " << current_states.transpose());
-            ROS_INFO_STREAM("Current landing_pad Position: " << landing_pad_states.transpose());
+            ROS_INFO_STREAM("Current Position: " << current_position.transpose());
             // ROS_INFO_STREAM("Last Tracking Position: " << last_tracking_position.transpose());
             // ROS_INFO_STREAM("Delta Time (dt): " << dt);
             ROS_INFO_STREAM("Velocity: " << velocity.transpose());
@@ -246,7 +243,7 @@ void odom_cb(const nav_msgs::Odometry::ConstPtr& msg){
     tf::quaternionMsgToTF(msg->pose.pose.orientation, quat); //取出方向存储于四元数
     tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 
-    current_states << x,y;
+    current_states << x,y,yaw;
 }
 
 void landing_pad_cb(const nav_msgs::Odometry::ConstPtr& msg){
@@ -260,12 +257,12 @@ void landing_pad_cb(const nav_msgs::Odometry::ConstPtr& msg){
     tf::quaternionMsgToTF(msg->pose.pose.orientation, quat); //取出方向存储于四元数
     tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);
 
-    landing_pad_states << x,y;
+    landing_pad_states << x,y,yaw;
 }
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>主函数<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "autonomous_landing");
+    ros::init(argc, argv, "autonomous_landing_2");
     ros::NodeHandle nh("~");
 
     // 节点运行频率： 20hz 【视觉端解算频率大概为20HZ】
@@ -367,7 +364,6 @@ int main(int argc, char **argv)
     nh.param<double>("average_velocity_time",D_time,0.2);
 
     nh.param<float>("k",k,1);
-    nh.param<float>("k2",k2,1);
 
     nh.param<float>("dynamic_distance",dynamic_distance,3.0);//切换动态降落的距离
     nh.param<float>("dynamic_height",dynamic_height,3.0);//切换动态降落的距离
@@ -616,14 +612,15 @@ int main(int argc, char **argv)
 
                 //【 调用nmpc求解】>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                 
-                Eigen::Vector2f goal_state ;
-                goal_state[0] = current_states[0] + k2 * landpad_det.pos_body_enu_frame[0];
-                goal_state[1] = current_states[1] + k2 * landpad_det.pos_body_enu_frame[1];
-                
-                nmpc_ctr.set_goal_states(goal_state);
-                // nmpc_ctr.set_goal_states(landing_pad_states);
+                Eigen::Vector3f goal_state ;
+                goal_state[0] = -landpad_det.pos_body_enu_frame[0];
+                goal_state[1] = landpad_det.pos_body_enu_frame[1];
+                goal_state[2] = atan2(landpad_det.pos_body_enu_frame[1], -landpad_det.pos_body_enu_frame[0]);
+                // nmpc_ctr.set_goal_states(goal_state);
+                nmpc_ctr.set_goal_states(landing_pad_states);
                 
                 Eigen::Vector3f current_states2;
+                current_states2 << 0,0,0;
                 nmpc_ctr.opti_solution(current_states);
 
                 Eigen::Vector2f nmpc_controls = nmpc_ctr.get_controls();
@@ -636,8 +633,7 @@ int main(int argc, char **argv)
                 Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XYZ_VEL;
                 // xy轴采用mpc
                 Command_Now.Reference_State.velocity_ref[0] = nmpc_controls[0];
-                Command_Now.Reference_State.velocity_ref[1] = nmpc_controls[1];
-                Command_Now.Reference_State.yaw_ref = 0;
+                Command_Now.Reference_State.yaw_ref = nmpc_controls[1];
                 // z轴采用pd
                 if(distance_to_pad > dynamic_distance && abs(landpad_det.pos_body_enu_frame[2] ) > dynamic_height){
                 Command_Now.Reference_State.velocity_ref[2] = kp_land[2] * landpad_det.pos_body_enu_frame[2] + kd_land[2] * velocity2[2];
@@ -660,7 +656,7 @@ int main(int argc, char **argv)
                 }
                 num +=1;
                 Eigen::Vector3f ave_target_vel = vel_sum/num;
-                ROS_INFO("caculated target X: %f, Y: %f", goal_state[0], goal_state[1]);
+
                 ROS_INFO("Drone velocity X: %f, Y: %f", _DroneState.velocity[0], _DroneState.velocity[1]);
                 ROS_INFO("Target velocity X: %f, Y: %f", target_vel[0], target_vel[1]);
                 ROS_INFO("ave_Target velocity X: %f, Y: %f",ave_target_vel[0], ave_target_vel[1]);

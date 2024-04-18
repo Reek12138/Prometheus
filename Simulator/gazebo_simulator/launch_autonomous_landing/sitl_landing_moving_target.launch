@@ -57,7 +57,7 @@
 		<param name="dynamic_kdz_land" value="0.0" />
 
 		<param name="arm_height_to_ground" value="0.2" />
-		<param name="arm_distance_to_pad" value="0.3" />
+		<param name="arm_distance_to_pad" value="0.2" />
 		<!-- 目标是否移动及其速度 -->
 		<param name="moving_target" value="true" /><!--true for sim, false for test-->
 		<param name="target_vel_x" value="1.1" />
@@ -67,6 +67,7 @@
 		<param name="D_time" value="0.01" />
 
 		<param name="k" value="1.1" />
+		<param name="k2" value="1.7" />
 		<param name="dynamic_distance" value="1.0" /><!--切换动态降落的距离-->
 		<param name="dynamic_height" value="0.8" /><!--切换动态降落的距离-->
 
