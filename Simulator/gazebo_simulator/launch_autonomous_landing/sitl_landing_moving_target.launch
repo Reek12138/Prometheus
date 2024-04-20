@@ -74,6 +74,8 @@
 		<param name="true_target_vel_x" value="0.3" /><!--测试用,目标速度真值x-->
 		<param name="true_target_vel_y" value="0.0" /><!--测试用,目标速度真值y-->
 
+		<param name="window_size" value="10"/><!--滑动窗口大小-->
+
 
 	</node>
 

@@ -80,6 +80,10 @@ float true_target_vel[2];//测试用,目标速度真值
 Eigen::Vector3f vel_sum(0.0, 0.0, 0.0);
 int num = 0;
 
+// 滑动窗口
+std::deque<Eigen::Vector3f> buffer;
+int window_size;
+
 // 五种状态机
 enum EXEC_STATE
 {
@@ -375,6 +379,7 @@ int main(int argc, char **argv)
     nh.param<float>("true_target_vel_x",true_target_vel[0],1.0);//测试用,目标x方向速度
     nh.param<float>("true_target_vel_y",true_target_vel[1],1.0);//测试用,目标x方向速度
 
+    nh.param<int>("window_size",window_size,10);//滑动窗口大小
     //打印现实检查参数
     printf_param();
 
@@ -651,15 +656,37 @@ int main(int argc, char **argv)
                     command_pub.publish(Command_Now);
                 }
 
+                // // 使用累加速度计算平均速度,适用于匀速目标>>>>>>>>>>>>>>>>>
+                // float target_vel[3];
+                // for(int i=0; i<3; i++){
+                //     // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
+                //     target_vel[i] = _DroneState.velocity[i] + velocity[i];
+                //     vel_sum[i] +=target_vel[i];
+                // }
+                // num +=1;
+                // Eigen::Vector3f ave_target_vel = vel_sum/num;
 
-                float target_vel[3];
-                for(int i=0; i<3; i++){
-                    // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
+                // 使用滑动窗口计算平均速度,适用于变速目标>>>>>>>>>>>>>>>>>>>>>>>
+                Eigen::Vector3f target_vel;
+                Eigen::Vector3f ave_target_vel;
+                for(int i=0;i<3;i++){
                     target_vel[i] = _DroneState.velocity[i] + velocity[i];
-                    vel_sum[i] +=target_vel[i];
                 }
-                num +=1;
-                Eigen::Vector3f ave_target_vel = vel_sum/num;
+                num+=1;
+                if(buffer.size() == window_size){
+                    vel_sum -= buffer.front();
+                    buffer.pop_front();
+                    buffer.push_back(target_vel);
+                    vel_sum += target_vel;
+                    ave_target_vel = vel_sum/window_size;
+                }
+                else if(buffer.size() < window_size){
+                    buffer.push_back(target_vel);
+                    vel_sum += target_vel;
+                    ave_target_vel = vel_sum/buffer.size();
+                }
+
+
                 ROS_INFO("caculated target X: %f, Y: %f", goal_state[0], goal_state[1]);
                 ROS_INFO("Drone velocity X: %f, Y: %f", _DroneState.velocity[0], _DroneState.velocity[1]);
                 ROS_INFO("Target velocity X: %f, Y: %f", target_vel[0], target_vel[1]);
@@ -737,14 +764,37 @@ int main(int argc, char **argv)
                     Command_Now.Reference_State.velocity_ref[i] = dynamic_kp_land[i] * landpad_det.pos_body_enu_frame[i] + dynamic_kd_land[i] * velocity2[i];
                 }
 
-                float target_vel[3];
-                for(int i=0; i<3; i++){
-                    // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
+                // // 使用累加速度计算平均速度,适用于匀速目标>>>>>>>>>>>>>>>>>
+                // float target_vel[3];
+                // for(int i=0; i<3; i++){
+                //     // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
+                //     target_vel[i] = _DroneState.velocity[i] + velocity[i];
+                //     vel_sum[i] +=target_vel[i];
+                // }
+                // num +=1;
+                // Eigen::Vector3f ave_target_vel = vel_sum/num;
+
+                // 使用滑动窗口计算平均速度,适用于变速目标>>>>>>>>>>>>>>>>>>>>>>>
+                Eigen::Vector3f target_vel;
+                Eigen::Vector3f ave_target_vel;
+                for(int i=0;i<3;i++){
                     target_vel[i] = _DroneState.velocity[i] + velocity[i];
-                    vel_sum[i] +=target_vel[i];
                 }
-                num +=1;
-                Eigen::Vector3f ave_target_vel = vel_sum/num;
+                num+=1;
+                if(buffer.size() == window_size){
+                    vel_sum -= buffer.front();
+                    buffer.pop_front();
+                    buffer.push_back(target_vel);
+                    vel_sum += target_vel;
+                    ave_target_vel = vel_sum/window_size;
+                }
+                else if(buffer.size() < window_size){
+                    buffer.push_back(target_vel);
+                    vel_sum += target_vel;
+                    ave_target_vel = vel_sum/buffer.size();
+                }
+
+
                 ROS_INFO("Drone velocity X: %f, Y: %f", _DroneState.velocity[0], _DroneState.velocity[1]);
                 ROS_INFO("Target velocity X: %f, Y: %f", target_vel[0], target_vel[1]);
                 ROS_INFO("ave_Target velocity X: %f, Y: %f",ave_target_vel[0], ave_target_vel[1]);
