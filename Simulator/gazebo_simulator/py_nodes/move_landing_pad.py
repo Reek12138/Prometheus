@@ -9,7 +9,6 @@ from gazebo_msgs.msg import ModelState
 
 move_type = 1
 
-
 def pose_publisher_line():
     pub = rospy.Publisher('gazebo/set_model_state', ModelState, queue_size=10)
     pose_msg = ModelState()
