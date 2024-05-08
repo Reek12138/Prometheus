@@ -11,6 +11,8 @@ int main(int argc, char **argv)
     ros::ServiceServer service = n.advertiseService("set_rvo_goals", set_goals);
     ros::Rate loop_rate(50);
 
+    uav_pubs.resize(4);
+    Command_Now.resize(4);
     uav_pubs[0] = n.advertise<prometheus_msgs::SwarmCommand>("/uav1/prometheus/swarm_command", 1000);
     uav_pubs[1] = n.advertise<prometheus_msgs::SwarmCommand>("/uav2/prometheus/swarm_command", 1000);
     uav_pubs[2] = n.advertise<prometheus_msgs::SwarmCommand>("/uav3/prometheus/swarm_command", 1000);
