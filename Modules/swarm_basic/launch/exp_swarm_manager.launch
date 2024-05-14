@@ -1,0 +1,13 @@
+<launch>
+  <!-- ========== STEP [1] 集群管理节点 ========== -->
+	<node pkg="testpkg" type="swarm_manager_node" name="swarm_manager_node">
+		<param name="swarm_num" value="2"/>
+
+		<!-- 2号机和主机的位置偏差 (主机坐标系下，2号机的位置) -->
+		<!-- 注意：需要先确定主机的 ENU 坐标系 -->
+		<param name="offset_x_2" value="1.8"/>
+		<param name="offset_y_2" value="0.0"/>
+		<param name="offset_z_2" value="-0.35"/>
+	</node>
+	<!-- ========== ========== ========== -->
+</launch>
