@@ -34,9 +34,9 @@
 		<param name="target_system_id" value="$(arg mavros_system_id)" />
 		<param name="target_component_id" value="1" />
     <!-- ++++++++++ [PARAMETER] 配置文件 ++++++++++ -->
-		<rosparam command="load" file="$(find testpkg)/config/experiment_config/px4_pluginlists_gps.yaml" />
+		<rosparam command="load" file="$(find swarm_basic)/config/experiment_config/px4_pluginlists_gps.yaml" />
     <!-- ++++++++++ [PARAMETER] 配置文件 ++++++++++ -->
-		<rosparam command="load" file="$(find testpkg)/config/experiment_config/px4_config_gps.yaml" />
+		<rosparam command="load" file="$(find swarm_basic)/config/experiment_config/px4_config_gps.yaml" />
 	</node>
   <!-- ========== ========== ========== -->
 
