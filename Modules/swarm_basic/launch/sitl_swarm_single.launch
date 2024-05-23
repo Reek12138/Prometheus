@@ -67,9 +67,9 @@
     <param name="target_system_id" value="$(eval 1 + arg('ID'))"/>
     <param name="target_component_id" value="1" />
     <!-- ++++++++++ [PARAMETER] 配置文件 ++++++++++ -->
-    <rosparam command="load" file="$(find testpkg)/config/experiment_config/px4_pluginlists_gps.yaml" />
+    <rosparam command="load" file="$(find swarm_basic)/config/experiment_config/px4_pluginlists_gps.yaml" />
 		<!-- ++++++++++ [PARAMETER] 配置文件 ++++++++++ -->
-		<rosparam command="load" file="$(find testpkg)/config/experiment_config/px4_config_gps.yaml" />
+		<rosparam command="load" file="$(find swarm_basic)/config/experiment_config/px4_config_gps.yaml" />
 	</node>
   <!-- ========== ========== ========== -->
 
