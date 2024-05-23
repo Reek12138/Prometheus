@@ -1,6 +1,6 @@
 <launch>
   <!-- ========== STEP [1] 集群管理节点 ========== -->
-	<node pkg="testpkg" type="swarm_manager_node" name="swarm_manager_node">
+	<node pkg="swarm_basic" type="swarm_manager_node" name="swarm_manager_node">
 		<param name="swarm_num" value="2"/>
 
 		<!-- 2号机和主机的位置偏差 (主机坐标系下，2号机的位置) -->
