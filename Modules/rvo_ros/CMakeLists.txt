@@ -61,4 +61,6 @@ add_executable(formation src/formation.cpp)
 target_link_libraries(formation ${catkin_LIBRARIES})
 add_dependencies(formation ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
+add_executable(rvo_uav_node src/rvo_uav_node.cpp)
+target_link_libraries(rvo_uav_node ${catkin_LIBRARIES} rvolib)
 #target_link_libraries(rvo_test RVO)
