@@ -36,7 +36,8 @@ std::vector<Vector3d> t_i2o; // 坐标原点相对主坐标系的偏移量
 std::vector<ros::Subscriber> drone_state_subs; // 订阅所有无人机状态信息
 std::vector<ros::Subscriber> drone_command_subs; // 订阅所有无人机控制指令(主机坐标系下)
 std::vector<ros::Publisher> drone_command_pubs; // 发布所有无人机控制指令
-std::vector<ros::Publisher> drone_state_vis_pubs; // 发布所有无人机状态信息可视化
+std::vector<ros::Publisher> drone_state_vis_pubs; // 发布所有无人机状态信息(仅用于可视化)
+std::vector<ros::Publisher> drone_state_pubs; // 发布所有无人机状态信息
 std::vector<prometheus_msgs::DroneState> drone_states; // 所有无人机状态信息
 ros::Timer drone_state_vis_timer; // 定时器
 
@@ -64,6 +65,7 @@ void drone_state_cb(const prometheus_msgs::DroneState::ConstPtr &msg, int id) {
 	// state.attitude_q = state.attitude_q;
 	// state.attitude_rate = state.attitude_rate;
 	drone_states[id] = state;
+	drone_state_pubs[id].publish(state);
 }
 
 /**
@@ -163,6 +165,12 @@ int main(int argc, char **argv) {
 			"/uav" + std::to_string(i+1) + "/prometheus/drone_state_vis",
 			10);
 		drone_state_vis_pubs.push_back(pub);
+	}
+	for (int i = 0; i < swarm_num; i++) {
+		ros::Publisher pub = nh.advertise<prometheus_msgs::DroneState>(
+			"/uav" + std::to_string(i+1) + "/prometheus/drone_state_manager",
+			10);
+		drone_state_pubs.push_back(pub);
 	}
 
 	/* timer */
