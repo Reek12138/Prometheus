@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<launch>
+
+  <include file="$(find xsugv_gazebo)/launch/playpen.launch" />
+
+  <include file="$(find xsugv_gazebo)/launch/spawn_xsugv.launch">
+    <arg name="robot_namespace" value="robot1"/>
+    <arg name="aruco" value="landing_pad_aruco_1"/>
+    <arg name="x" value="0.0"/>
+    <arg name="y" value="0.0"/>
+  </include>
+
+
+  <include file="$(find xsugv_gazebo)/launch/spawn_xsugv.launch">
+    <arg name="robot_namespace" value="robot2"/>
+    <arg name="aruco" value="landing_pad_aruco_2"/>
+    <arg name="x" value="0.0"/>
+    <arg name="y" value="2.0"/>
+  </include>
+
+
+  <include file="$(find xsugv_gazebo)/launch/spawn_xsugv.launch">
+    <arg name="robot_namespace" value="robot3"/>
+    <arg name="aruco" value="landing_pad_aruco_3"/>
+    <arg name="x" value="2.0"/>
+    <arg name="y" value="2.0"/>
+  </include>
+
+
+  <include file="$(find xsugv_gazebo)/launch/spawn_xsugv.launch">
+    <arg name="robot_namespace" value="robot4"/>
+    <arg name="aruco" value="landing_pad_aruco_4"/>
+    <arg name="x" value="4.0"/>
+    <arg name="y" value="0.0"/>
+  </include>
+
+</launch>

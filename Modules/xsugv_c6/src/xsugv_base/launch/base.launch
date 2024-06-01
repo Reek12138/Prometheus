@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="robot_ip" default="$(optenv XSUGV_IP 172.23.100.93)" />
+    <arg name="robot_port" default="$(optenv XSUGV_PORT 4501)" />
+
+    <!-- XSUGV harware driver -->
+    <node pkg="xsugv_base" type="xsugv_node" name="xsugv_node" output="screen">
+        <rosparam subst_value="true">
+            robot_ip: $(arg robot_ip)
+            robot_port: $(arg robot_port)
+
+            control_frequency: 50.0
+            diagnostic_frequency: 1.0
+
+            max_acceleration: 3.0
+            max_speed: 1.4
+            wheel_diameter: 0.2
+            polling_timeout: 50.0
+        </rosparam>
+    </node>
+
+    <!-- Differential controller parameters and basic localization -->
+    <include file="$(find xsugv_control)/launch/control.launch" />
+
+    <!--Teleop -->
+    <!--<include file="$(find xsugv_control)/launch/teleop.launch" />-->
+
+</launch>
