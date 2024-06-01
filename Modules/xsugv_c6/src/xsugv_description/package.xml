@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package>
+  <name>xsugv_description</name>
+  <version>0.0.1</version>
+  <description>XSUGV C6-ROS URDF description</description>
+
+  <author email="xiaolijun@xingshentech.com">XiaoLijun</author>
+
+  <maintainer email="xiaolijun@xingshentech.com">XiaoLijun</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roslaunch</build_depend>
+  <run_depend>realsense2_description</run_depend>
+  <run_depend>urdf</run_depend>
+  <run_depend>xacro</run_depend>
+  <run_depend>lms1xx</run_depend>
+  <run_depend>velodyne_description</run_depend>
+
+  <export>
+  </export>
+</package>

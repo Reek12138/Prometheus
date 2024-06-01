@@ -1,0 +1,9 @@
+<library path="lib/libxsugv_rviz_plugins">
+  <class name="协同车辆中心"
+         type="xsugv::XSUGVCenterPanel"
+         base_class_type="rviz::Panel">
+    <description>
+      A panel widget for xsugv center
+    </description>
+  </class>
+</library>

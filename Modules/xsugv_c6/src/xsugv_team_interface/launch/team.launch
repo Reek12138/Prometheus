@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="robot_name" default="$(optenv XSUGV_NAME C6_001)" />
+    <arg name="robot_id" default="$(optenv XSUGV_ID 1)" />
+
+    <node pkg="xsugv_team_interface" type="xsugv_team_node" name="xsugv_team_node" output="screen">
+        <rosparam subst_value="true">
+            ugv_id: $(arg robot_id)
+            ugv_name: $(arg robot_name)
+            info_frequency: 10.0
+        </rosparam>
+    </node>
+
+</launch>

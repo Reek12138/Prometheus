@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="robot_ip" default="$(optenv XSUGV_IP 172.23.100.93)" />
+
+  <include file="$(find xsugv_bringup)/launch/navsat_config/navsat.launch"/>
+  <include file="$(find xsugv_bringup)/launch/rs_lidar_config/rs_lidar_rshelios.launch"/>
+  <include file="$(find xsugv_team_interface)/launch/team.launch"/>
+
+  <node name="xsugv_sonar_node" pkg="xsugv_sonar" type="xsugv_sonar_node">
+    <rosparam subst_value="true">
+      robot_ip: $(arg robot_ip)
+    </rosparam>
+  </node>
+</launch>

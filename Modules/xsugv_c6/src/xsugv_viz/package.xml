@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package>
+  <name>xsugv_viz</name>
+  <version>0.0.1</version>
+  <description>Visualization configuration for XSUGV C6-ROS</description>
+
+  <author email="Xingshen@xingshentech.com">Xingshen</author>
+  <maintainer email="Xingshen@xingshentech.com">Xingshen</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roslaunch</build_depend>
+
+  <run_depend>xsugv_description</run_depend>
+  <run_depend>joint_state_publisher</run_depend>
+  <run_depend>robot_state_publisher</run_depend>
+  <run_depend>joint_state_publisher_gui</run_depend>
+  <run_depend>rviz</run_depend>
+  <run_depend>rqt_console</run_depend>
+  <run_depend>rqt_gui</run_depend>
+  <run_depend>rqt_robot_monitor</run_depend>
+  <run_depend>rviz_imu_plugin</run_depend>
+
+  <export>
+  </export>
+</package>

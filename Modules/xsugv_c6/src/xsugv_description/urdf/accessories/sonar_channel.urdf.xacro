@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="xsugv_sonar_channel">
+
+	<xacro:macro name="xsugv_sonar_channel" params="channel *joint_pose">
+		<link name="sonar${channel}_link"/>
+		<joint name="sonar${channel}_join" type="fixed">
+			<parent link="base_link"/>
+			<child link="sonar${channel}_link"/>
+			<xacro:insert_block name="joint_pose"/>
+		</joint>
+	</xacro:macro>
+</robot>

@@ -1,0 +1,17 @@
+<launch>
+  <!-- ========== STEP [1] 启动 终端信息打印 ========== -->
+	<node pkg="prometheus_station" type="ground_station" name="ground_station" output="screen" launch-prefix="gnome-terminal --tab --">	
+	</node>
+
+	<node pkg="prometheus_station" type="ground_station_msg" name="ground_station_msg" output="screen" launch-prefix="gnome-terminal --tab --">	
+	</node>
+  <!-- ========== ========== ========== -->
+
+  <!-- ========== STEP [3] 启动 rviz ========== -->
+	<arg name="visualization" default="true"/>
+	<group if="$(arg visualization)">
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find testpkg)/config/rviz_config/ego-planner.rviz" />
+  </group>
+  <!-- ========== ========== ========== -->
+
+</launch>

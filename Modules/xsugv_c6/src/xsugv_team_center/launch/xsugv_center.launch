@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+
+  <node name="tf_relay" pkg="topic_tools" type="relay" args="/relay/tf /tf"/>
+
+  <node name="xsugv_ros_master_relay" pkg="xsugv_team_center" type="xsugv_ros_master_relay_node" output="screen"/>
+  
+  <node name="xsugv_center_rviz" pkg="rviz" type="rviz" args="-d $(find xsugv_team_center)/rviz/xsugv_center.rviz" output="screen">
+    <remap from="/initialpose" to="/relay/initialpose"/>
+    <remap from="/move_base_simple/goal" to="/relay/move_base_simple/goal"/>
+  </node>
+
+</launch>
