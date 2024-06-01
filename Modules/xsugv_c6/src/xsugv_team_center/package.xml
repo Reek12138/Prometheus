@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>xsugv_team_center</name>
+  <version>0.0.1</version>
+  <description>The xsugv center</description>
+
+  <maintainer email="xingshen@xingshentech.com">XingShen</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>rviz</build_depend>
+  <build_depend>qtbase5-dev</build_depend>
+  <build_depend>qtnetwork5-dev</build_depend>
+  <build_depend>qtconcurrent5-dev</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>map_server</build_depend>
+  <depend>nav_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>roscpp</depend>
+  <depend>tf2</depend>
+  
+
+  <exec_depend>message_runtime</exec_depend>
+  <exec_depend>libqt5-core</exec_depend>
+  <exec_depend>libqt5-gui</exec_depend>
+  <exec_depend>libqt5-widgets</exec_depend>
+  <exec_depend>libqt5-network</exec_depend>
+  <exec_depend>libqt5-concurrent</exec_depend>
+  <exec_depend>map_server</exec_depend>
+  <exec_depend>rviz</exec_depend>
+
+  <export>
+    <rviz plugin="${prefix}/xsugv_rviz_plugins.xml"/>
+  </export>
+</package>

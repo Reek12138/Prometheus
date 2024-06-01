@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+    <include file="$(find xsugv_base)/launch/base.launch" />
+    <include file="$(find xsugv_bringup)/launch/xsugv_c6.launch" />
+    <include file="$(find xsugv_navigation)/launch/amcl_demo.launch" />
+
+</launch>

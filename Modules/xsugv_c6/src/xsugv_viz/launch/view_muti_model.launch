@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<launch>
+
+  <include file="$(find xsugv_viz)/launch/load_robot_model.launch">
+    <arg name="robot_namespace" value="robot1"/>
+    <arg name="aruco" value="landing_pad_aruco_1"/>
+    <arg name="origin" value="0 0 0 0 0 0"/>
+  </include>
+
+  <include file="$(find xsugv_viz)/launch/load_robot_model.launch">
+    <arg name="robot_namespace" value="robot2"/>
+    <arg name="aruco" value="landing_pad_aruco_2"/>
+    <arg name="origin" value="0 2 0 1.57 0 0"/>
+  </include>
+
+  <include file="$(find xsugv_viz)/launch/load_robot_model.launch">
+    <arg name="robot_namespace" value="robot3"/>
+    <arg name="aruco" value="landing_pad_aruco_3"/>
+    <arg name="origin" value="2 2 0 3.14 0 0"/>
+  </include>
+
+  <include file="$(find xsugv_viz)/launch/load_robot_model.launch">
+    <arg name="robot_namespace" value="robot4"/>
+    <arg name="aruco" value="landing_pad_aruco_4"/>
+    <arg name="origin" value="2 0 0 4.71 0 0"/>
+  </include>
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find xsugv_viz)/rviz/muti_model.rviz" />
+
+</launch>
