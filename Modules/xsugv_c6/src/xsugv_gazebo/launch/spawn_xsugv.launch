@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="robot_namespace" default="/"/>
+  <arg name="aruco" default=""/>
+
+  <arg name="x" default="-1.0"/>
+  <arg name="y" default="2.0"/>
+  <arg name="z" default="0.0"/>
+  <arg name="yaw" default="0.0"/>
+
+  <!-- Optionally disable teleop control -->
+  <arg name="joystick" default="true" />
+
+  <group ns="$(arg robot_namespace)">
+
+    <include file="$(find xsugv_control)/launch/control.launch">
+      <arg name="robot_namespace" value="$(arg robot_namespace)"/>
+      <arg name="aruco" value="$(arg aruco)"/>
+    </include>
+
+    <!-- <include file="$(find xsugv_control)/launch/teleop.launch">
+      <arg name="joystick" value="$(arg joystick)" />
+    </include> -->
+
+    <!-- Additional nodes for specific accessories -->
+    <group if="$(optenv XSUGV_REALSENSE_ENABLED 0)">
+      <include file="$(find xsugv_gazebo)/launch/realsense.launch" />
+    </group>
+
+    <!-- Spawn robot in gazebo -->
+    <node name="spawn_xsugv_model" pkg="gazebo_ros" type="spawn_model"
+        args="-x $(arg x)
+              -y $(arg y)
+              -z $(arg z)
+              -Y $(arg yaw)
+              -unpause
+              -urdf
+              -param robot_description
+              -model xsugv_c6_ros_$(arg robot_namespace)
+              -robot_namespace $(arg robot_namespace)" />
+
+  </group>
+
+</launch>

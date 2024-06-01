@@ -1,0 +1,42 @@
+<launch>
+  <!-- ========== STEP [1] 启动 mavros 节点 ========== -->
+	<!-- 不同机载电脑,注意修改fcu_url至正确的端口号及波特率 -->
+	<node pkg="mavros" type="mavros_node" name="mavros" output="screen">
+		<param name="fcu_url" value="/dev/ttyTHS0:921600" />
+		<!--param name="gcs_url" value="udp://@192.168.31.46" / -->
+		<param name="gcs_url" value="" />
+    <!-- 根据 QGC 里面的 MAV_SYS_ID 设置 -->
+		<param name="target_system_id" value="5" />
+		<param name="target_component_id" value="1" />
+    <!-- ++++++++++ [PARAMETER] 配置文件 ++++++++++ -->
+		<rosparam command="load" file="$(find testpkg)/config/experiment_config/px4_pluginlists_gps.yaml" />
+    <!-- ++++++++++ [PARAMETER] 配置文件 ++++++++++ -->
+		<rosparam command="load" file="$(find testpkg)/config/experiment_config/px4_config_gps.yaml" />
+	</node>
+  <!-- ========== ========== ========== -->
+
+  <!-- ========== STEP [2] 启动 Prometheus 和飞控通信 ========== -->
+	<node pkg="prometheus_control" type="px4_pos_estimator" name="px4_pos_estimator" output="screen">
+		<!-- 定位数据输入源 0 for vicon， 1 for 激光SLAM, 2 for gazebo ground truth, 3 for T265 -->
+		<param name="input_source" value="9" />
+		<param name="rate_hz" value="20" />
+		<param name="offset_x" value="0" />
+		<param name="offset_y" value="0" />
+		<param name="offset_z" value="0" />
+	</node>
+	
+	<node pkg="prometheus_control" type="px4_sender" name="px4_sender" output="screen">
+    <!-- ++++++++++ [PARAMETER] 配置文件 ++++++++++ -->
+		<rosparam command="load" file="$(find testpkg)/config/experiment_config/px4_sender_outdoor.yaml"/>
+	</node>
+  <!-- ========== ========== ========== -->
+
+	<!-- ========== STEP [3] 启动 2D 激光雷达 和 tf ========== -->
+	<include file="$(find bluesea2)/launch/amov-50C-3.launch">
+  </include>
+
+	<include file="$(find testpkg)/launch/include/tf_transform_gps.launch">
+  </include>
+  <!-- ========== ========== ========== -->
+
+</launch>

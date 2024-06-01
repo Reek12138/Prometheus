@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="rslidar_32b">
+	<xacro:macro name="rslidar_32b" params="*joint_pose">
+		<link name="rslidar_32b_link">
+			<visual>
+				<material name="black"/>
+				<origin xyz="0 0 0" rpy="0 0 0" />
+				<geometry>
+					<mesh filename="package://xsugv_description/meshes/accessories/rslidar_32b.stl" />
+				</geometry>
+			</visual>
+		</link>
+		<joint name="rslidar_32b_join" type="fixed">
+			<parent link="base_link"/>
+			<child link="rslidar_32b_link"/>
+			<xacro:insert_block name="joint_pose"/>
+		</joint>
+	</xacro:macro>
+</robot>
