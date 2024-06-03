@@ -96,7 +96,7 @@ void NMPC::set_my_nmpc_solver()
     m_R(1,1) = 0.05;
 
     casadi::SX m_R_delta = casadi::SX::zeros(2,2);
-    m_R_delta(1,1) = 0.2; // 假设只惩罚角速度的变化，设置相应的权重
+    m_R_delta(1,1) = 0.3; // 假设只惩罚角速度的变化，设置相应的权重
     
     //计算代价函数
     casadi::SX cost_fun = casadi::SX::sym("cost_fun");
@@ -104,24 +104,35 @@ void NMPC::set_my_nmpc_solver()
 
     int trajectory_points_index = 0;
 
-    for(int k=0;k<m_predict_step-1;k++)
+    for(int k=0;k<m_predict_step;k++)
     {
         casadi::SX states_err = X(casadi::Slice(),k)-opt_para(casadi::Slice(3,6,1));
         casadi::SX controls_err = U(casadi::Slice(),k);
-        casadi::SX controls_diff = U(casadi::Slice(),k+1) - U(casadi::Slice(),k); // 计算连续控制输入之间的差异
+        // casadi::SX controls_diff = U(casadi::Slice(),k+1) - U(casadi::Slice(),k); // 计算连续控制输入之间的差异
         cost_fun = cost_fun+casadi::SX::mtimes({states_err.T(),m_Q,states_err})+
-                            casadi::SX::mtimes({controls_err.T(),m_R,controls_err})+
-                            casadi::SX::mtimes({controls_diff.T(),m_R_delta,controls_diff});
-    }
-    casadi::SX states_err = X(casadi::Slice(),m_predict_step-1)-opt_para(casadi::Slice(3,6,1));
-    casadi::SX controls_err = U(casadi::Slice(),m_predict_step-1);
-    cost_fun = cost_fun+casadi::SX::mtimes({states_err.T(),m_Q,states_err})+
                             casadi::SX::mtimes({controls_err.T(),m_R,controls_err});
+                            // casadi::SX::mtimes({controls_diff.T(),m_R_delta,controls_diff});
+    }
+    for(int k =1; k<m_predict_step-1; k++){
+        casadi::SX controls_diff = U(casadi::Slice(),k+1) - U(casadi::Slice(),k-1); // 计算连续控制输入之间的差异
+        cost_fun += casadi::SX::mtimes({controls_diff.T(), m_R_delta, controls_diff});
+    }
+    // casadi::SX states_err = X(casadi::Slice(),m_predict_step-1)-opt_para(casadi::Slice(3,6,1));
+    // casadi::SX controls_err = U(casadi::Slice(),m_predict_step-1);
+    // cost_fun = cost_fun+casadi::SX::mtimes({states_err.T(),m_Q,states_err})+
+    //                         casadi::SX::mtimes({controls_err.T(),m_R,controls_err});
+
+    //添加终端约束条件
+    casadi::SX constraints = X(casadi::Slice(), m_predict_step) - opt_para(casadi::Slice(3, 6, 1));
+
 
     //构建求解器(暂时不考虑约束)
     casadi::SXDict nlp_prob = {
         {"f", cost_fun},
         {"x", opt_var},
+
+        {"g", constraints},
+
         {"p",opt_para}
     };
 
@@ -177,6 +188,10 @@ void NMPC::opti_solution(Eigen::Matrix<float,3,1> current_states)
     m_args["ubx"] = ubx;
     m_args["x0"] = m_initial_guess;
     m_args["p"] = parameters;
+
+    m_args["lbg"] = std::vector<float>{-0.1, -0.1, -M_PI/18}; // 终端约束的下界
+    m_args["ubg"] = std::vector<float>{0.1, 0.1, M_PI/18}; // 终端约束的上界
+
     //求解
     m_res = m_solver(m_args);
 
