@@ -76,6 +76,8 @@
 
 		<param name="window_size" value="10"/><!--滑动窗口大小-->
 
+		<param name="delta" value="1.0"/>
+
 
 	</node>
 

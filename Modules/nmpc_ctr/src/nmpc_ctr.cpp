@@ -140,11 +140,15 @@ void NMPC::set_my_nmpc_solver()
         cost_fun = cost_fun+casadi::SX::mtimes({states_err.T(),m_Q,states_err})+
                             casadi::SX::mtimes({controls_err.T(),m_R,controls_err});
     }
+    //添加终端约束条件
+    casadi::SX constraints = X(casadi::Slice(), m_predict_step) - opt_para(casadi::Slice(2, 4, 1));
+
 
     //构建求解器(暂时不考虑约束)
     casadi::SXDict nlp_prob = {
         {"f", cost_fun},
         {"x", opt_var},
+        {"g", constraints},
         {"p",opt_para}
     };
 
@@ -212,6 +216,8 @@ void NMPC::opti_solution(Eigen::Matrix<float,2,1> current_states)
     m_args["ubx"] = ubx;
     m_args["x0"] = m_initial_guess;
     m_args["p"] = parameters;
+    m_args["lbg"] = std::vector<float>{-0.05, -0.05}; // 终端约束的下界
+    m_args["ubg"] = std::vector<float>{0.05, 0.05}; // 终端约束的上界
     //求解
     m_res = m_solver(m_args);
 

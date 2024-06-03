@@ -11,7 +11,8 @@
   </include> -->
 
      <!-- Load the custom empty world with friction -->
-  <arg name="world_name" default="$(find prometheus_gazebo)/worlds/my_empty.world"/>
+  <arg name="world_name" default="$(find prometheus_gazebo)/worlds/TD3.world"/>
+  <!-- <arg name="world_name" default="$(find prometheus_gazebo)/worlds/prometheus_logo.world"/> -->
 
   <!-- Launch Gazebo with the custom empty world -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
@@ -19,9 +20,10 @@
   </include>
 
   <include file="$(find xsugv_gazebo)/launch/spawn_xsugv.launch">
+    
     <arg name="aruco" value="landing_pad"/>
-    <arg name="x" value="1.0"/>
-    <arg name="y" value="-5.0"/>
+    <arg name="x" value="0.0"/>
+    <arg name="y" value="0.0"/>
     <arg name="z" value="0"/>
     <arg name="yaw" value="0"/>
   </include>
