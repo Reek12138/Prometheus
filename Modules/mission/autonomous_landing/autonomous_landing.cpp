@@ -84,6 +84,8 @@ int num = 0;
 std::deque<Eigen::Vector3f> buffer;
 int window_size;
 
+float delta;
+
 // 五种状态机
 enum EXEC_STATE
 {
@@ -113,7 +115,10 @@ void landpad_det_cb(const prometheus_msgs::DetectionInfo::ConstPtr &msg)
     landpad_det.pos_body_frame[0] = - landpad_det.Detection_info.position[1] + camera_offset[0];
     landpad_det.pos_body_frame[1] = - landpad_det.Detection_info.position[0] + camera_offset[1];
     landpad_det.pos_body_frame[2] = - landpad_det.Detection_info.position[2] + camera_offset[2];
-
+    landpad_det.att_body_frame[0] = landpad_det.Detection_info.attitude[0];//yaw 顺时针为负
+    landpad_det.att_body_frame[1] = landpad_det.Detection_info.attitude[1];//pitch
+    landpad_det.att_body_frame[2] = landpad_det.Detection_info.attitude[2];//roll 
+    
     // 机体系 -> 机体惯性系 (原点在机体的惯性系) (对无人机姿态进行解耦)
     landpad_det.pos_body_enu_frame = R_Body_to_ENU * landpad_det.pos_body_frame;
 
@@ -128,7 +133,7 @@ void landpad_det_cb(const prometheus_msgs::DetectionInfo::ConstPtr &msg)
     landpad_det.pos_enu_frame[1] = _DroneState.position[1] + landpad_det.pos_body_enu_frame[1];
     landpad_det.pos_enu_frame[2] = _DroneState.position[2] + landpad_det.pos_body_enu_frame[2];
     // 此降落方案不考虑偏航角 （高级版可提供）
-    landpad_det.att_enu_frame[2] = 0.0;
+    // landpad_det.att_enu_frame[2] = 0.0;
 
     if(landpad_det.Detection_info.detected)
     {
@@ -152,23 +157,6 @@ void landpad_det_cb(const prometheus_msgs::DetectionInfo::ConstPtr &msg)
         landpad_det.is_detected = true;
     }
 
-    // // 计算一段时间内相对速度
-    // if(is_tracking_initialized){
-    //     ros::Time current_time = ros::Time::now();
-    //     float dt = (current_time -  last_tracking_time).toSec();
-
-    //     if(dt >= average_velocity_time){
-    //         Eigen::Vector3f current_position = landpad_det.pos_body_enu_frame;
-    //         velocity = (current_position - last_tracking_position)/dt;
-
-    //         // 打印或处理速度
-    //         // ROS_INFO("Average Velocity (over last %f seconds): x=%f, y=%f, z=%f", dt, velocity.x(), velocity.y(), velocity.z());
-
-    //         // 更新上次位置和时间
-    //         last_tracking_position = current_position;
-    //         last_tracking_time = current_time;
-    //     }
-    // }
 
 }
 
@@ -372,6 +360,8 @@ int main(int argc, char **argv)
 
     nh.param<float>("k",k,1);
     nh.param<float>("k2",k2,1);
+
+    nh.param<float>("delta",delta,1);
 
     nh.param<float>("dynamic_distance",dynamic_distance,3.0);//切换动态降落的距离
     nh.param<float>("dynamic_height",dynamic_height,3.0);//切换动态降落的距离
@@ -800,12 +790,31 @@ int main(int argc, char **argv)
                 ROS_INFO("ave_Target velocity X: %f, Y: %f",ave_target_vel[0], ave_target_vel[1]);
                 ROS_INFO("---------------------Dynamic landing-----------------------------------");
 
+                 //【 调用nmpc求解】>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                
+                Eigen::Vector2f goal_state ;
+                goal_state[0] = current_states[0] + k2 * landpad_det.pos_body_enu_frame[0];
+                goal_state[1] = current_states[1] + k2 * landpad_det.pos_body_enu_frame[1];
+                
+                nmpc_ctr.set_goal_states(goal_state);
+                // nmpc_ctr.set_goal_states(landing_pad_states);
+                
+                Eigen::Vector3f current_states2;
+                nmpc_ctr.opti_solution(current_states);
+
+                Eigen::Vector2f nmpc_controls = nmpc_ctr.get_controls();
+
                 if(moving_target)//这里简单加上目标速度效果并不好
                 {
                     // Command_Now.Reference_State.velocity_ref[0] += 0.3 * target_vel_xy[0];
                     // Command_Now.Reference_State.velocity_ref[1] += 0.3 * target_vel_xy[1];
                     Command_Now.Reference_State.velocity_ref[0] += k * ave_target_vel[0];
                     Command_Now.Reference_State.velocity_ref[1] += k * ave_target_vel[1];
+
+                    Command_Now.Reference_State.velocity_ref[0] = (1-delta) * Command_Now.Reference_State.velocity_ref[0] + delta * nmpc_controls[0];
+                    Command_Now.Reference_State.velocity_ref[1] = (1-delta) * Command_Now.Reference_State.velocity_ref[1] + delta * nmpc_controls[1];
+
+                    delta = delta * 0.8;
                 }
 
                 if(!moving_target){

@@ -263,19 +263,21 @@
     <parent link="base_link"/>
     <child link="rslidar" />
   </joint>
-  <!--
+<!--   
     Add the 3d laser
   -->
-<!--
-  <xacro:VLP-16 parent="rslidar">
+
+  <!-- <xacro:VLP-16 parent="rslidar">
     <origin xyz="0 0 0"/>
-  </xacro:VLP-16>
--->
-<!--
-  <xacro:rslidar_32b>
+  </xacro:VLP-16> -->
+
+<!-- <xacro:VLP-16 parent="rslidar" name="velodyne" topic="/velodyne_points" hz="10" samples="360" min_angle="-3.14" max_angle="3.14">
+  <origin xyz="0 0 0" rpy="0 0 0"/>
+</xacro:VLP-16> -->
+  <!-- <xacro:rslidar_32b>
     <origin xyz="0.44 0 0.534"/>
-  </xacro:rslidar_32b>
--->
+  </xacro:rslidar_32b> -->
+
 
   <gazebo>
     <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
