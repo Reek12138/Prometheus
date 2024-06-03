@@ -7,12 +7,21 @@ import rospy
 import math
 from gazebo_msgs.msg import ModelState
 
+from geometry_msgs.msg import Quaternion
+import tf.transformations
+from math import pi
+
 move_type = 1
+
+def euler_to_quaternion(roll, pitch, yaw):
+    quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
+    return quaternion
 
 def pose_publisher_line():
     pub = rospy.Publisher('gazebo/set_model_state', ModelState, queue_size=10)
     pose_msg = ModelState()
     pose_msg.model_name = 'car_landing_pad'
+    # pose_msg.model_name = 'xsugv_c6_ros_/'
     rate = rospy.Rate(100)
     linear_vel = 0.3
     time = 0.0
@@ -27,6 +36,10 @@ def pose_publisher_line():
         pose_msg.pose.position.x = pos
         pose_msg.pose.position.y = -2.0
         pose_msg.pose.position.z = 0.01
+        # quaternion = euler_to_quaternion(0, 0, pi/6)
+        quaternion = euler_to_quaternion(0, 0, 0)
+        pose_msg.pose.orientation = Quaternion(*quaternion)
+        
         pub.publish(pose_msg)
         print('Pos_x :',pose_msg.pose.position.x)
         print('Pos_y :',pose_msg.pose.position.y)
