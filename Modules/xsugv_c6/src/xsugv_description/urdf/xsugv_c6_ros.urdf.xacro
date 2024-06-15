@@ -19,12 +19,11 @@
   <!-- Base Size -->
   <xacro:property name="base_x_size" value="0.98740000" />
   <xacro:property name="base_y_size" value="0.57090000" />
-  <xacro:property name="base_z_size" value="0.24750000" />
+  <xacro:property name="base_z_size" value="0.34750000" />
 
   <!-- Wheel Mounting Positions -->
   <xacro:property name="wheelbase" value="0.482" />
-  <xacro:property name="track" value="0.5708" />
-  <xacro:property name="wheel_vertical_offset" value="0.05" />
+  <xacro:property name="wheel_vertical_offset" value="0.0" />
 
   <!-- Wheel Properties -->
   <xacro:property name="wheel_length" value="0.1" />
@@ -34,7 +33,7 @@
   <link name="base_link">
     <visual>
       <material name="red"/>
-      <origin xyz="0 0 ${wheel_radius+0.13}" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
         <mesh filename="package://xsugv_description/meshes/base_link.stl" />
       </geometry>
@@ -88,7 +87,7 @@
     </visual>
   </link>
   <joint name="gan_joint" type="fixed">
-    <origin xyz="0.059 0.0 0.318" rpy="0 0 0" />
+    <origin xyz="0.0 0.0 0.218" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="gan_link" />
   </joint>
@@ -117,14 +116,14 @@
   <link name="parking_apron_link">
     <visual>
       <material name="black"/>
-      <origin xyz="0.07 0 0.586" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
         <mesh filename="package://xsugv_description/meshes/parking_apron.stl" />
       </geometry>
     </visual>
   </link>
   <joint name="parking_apron_joint" type="fixed">
-    <origin xyz="0 0 0" rpy="0 0 0" />
+    <origin xyz="0.012 0 0.486" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="parking_apron_link" />
   </joint>
@@ -136,14 +135,14 @@
     <link name="landing_pad_link">
       <visual>
         <material name="white"/>
-        <origin xyz="0.1 0 0.606" rpy="0 0 0" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
           <mesh filename="package://xsugv_description/meshes/accessories/$(arg aruco).dae" />
         </geometry>
       </visual>
     </link>
     <joint name="landing_pad_joint" type="fixed">
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0.03 0 0.02" rpy="0 0 0" />
       <parent link="parking_apron_link" />
       <child link="landing_pad_link" />
     </joint>
@@ -159,7 +158,7 @@
     </visual>
   </link>
   <joint name="imu_joint" type="fixed">
-    <origin xyz="$(optenv XSUGV_IMU_XYZ 0.314 0 0.19)" rpy="$(optenv XSUGV_IMU_RPY 0 0 0)" />
+    <origin xyz="$(optenv XSUGV_IMU_XYZ 0.256 0 0.09)" rpy="$(optenv XSUGV_IMU_RPY 0 0 0)" />
     <parent link="base_link" />
     <child link="imu_link" />
   </joint>
@@ -177,7 +176,7 @@
     </visual>
   </link>
   <joint name="gps_joint" type="fixed">
-    <origin xyz="0.395 -0.126 0.503" rpy="0 0 0" />
+    <origin xyz="0.337 -0.126 0.403" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="gps_link" />
   </joint>
@@ -187,63 +186,63 @@
 
   <!-- xsugv wheel macros -->
   <xacro:xsugv_left_wheel wheel_prefix="front_left">
-    <origin xyz="0.304 ${wheelbase/2} ${wheel_radius}" rpy="0 0 0" />
+    <origin xyz="0.24 ${wheelbase/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:xsugv_left_wheel>
   <xacro:xsugv_right_wheel wheel_prefix="front_right">
-    <origin xyz="0.304 ${-wheelbase/2} ${wheel_radius}" rpy="0 0 0" />
+    <origin xyz="0.24 ${-wheelbase/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:xsugv_right_wheel>
   <xacro:xsugv_left_wheel wheel_prefix="middle_left">
-    <origin xyz="0.056 ${wheelbase/2} ${wheel_radius}" rpy="0 0 0" />
+    <origin xyz="0.0 ${wheelbase/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:xsugv_left_wheel>
   <xacro:xsugv_right_wheel wheel_prefix="middle_right">
-    <origin xyz="0.056 ${-wheelbase/2} ${wheel_radius}" rpy="0 0 0" />
+    <origin xyz="0.0 ${-wheelbase/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:xsugv_right_wheel>
   <xacro:xsugv_left_wheel wheel_prefix="rear_left">
-    <origin xyz="-0.184 ${wheelbase/2} ${wheel_radius}" rpy="0 0 0" />
+    <origin xyz="-0.24 ${wheelbase/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:xsugv_left_wheel>
   <xacro:xsugv_right_wheel wheel_prefix="rear_right">
-    <origin xyz="-0.184 ${-wheelbase/2} ${wheel_radius}" rpy="0 0 0" />
+    <origin xyz="-0.24 ${-wheelbase/2} ${wheel_vertical_offset}" rpy="0 0 0" />
   </xacro:xsugv_right_wheel>
 
   <xacro:xsugv_sonar>
-    <origin xyz="0.058 0 0.29" rpy="0 0 0" />
+    <origin xyz="0 0 0.19" rpy="0 0 0" />
   </xacro:xsugv_sonar>
 
   <xacro:xsugv_sonar_channel channel="0">
-    <origin xyz="-0.118 -0.22 0.29" rpy="0 0 ${-M_PI/2}" />
+    <origin xyz="-0.233 -0.22 0.19" rpy="0 0 ${-M_PI/2}" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="1">
-    <origin xyz="0.115 -0.22 0.29" rpy="0 0 ${-M_PI/2}" />
+    <origin xyz="0 -0.22 0.19" rpy="0 0 ${-M_PI/2}" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="2">
-    <origin xyz="0.348 -0.22 0.29" rpy="0 0 ${-M_PI/2}" />
+    <origin xyz="0.233 -0.22 0.19" rpy="0 0 ${-M_PI/2}" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="3">
-    <origin xyz="0.47 -0.122 0.29" rpy="0 0 0" />
+    <origin xyz="0.335 -0.122 0.19" rpy="0 0 0" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="4">
-    <origin xyz="0.47 0 0.29" rpy="0 0 0" />
+    <origin xyz="0.335 0 0.19" rpy="0 0 0" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="5">
-    <origin xyz="0.47 0.122 0.29" rpy="0 0 0" />
+    <origin xyz="0.335 0.122 0.19" rpy="0 0 0" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="6">
-    <origin xyz="0.348 0.22 0.29" rpy="0 0 ${M_PI/2}" />
+    <origin xyz="0.233 0.22 0.19" rpy="0 0 ${M_PI/2}" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="7">
-    <origin xyz="0.115 0.22 0.29" rpy="0 0 ${M_PI/2}" />
+    <origin xyz="0 0.22 0.19" rpy="0 0 ${M_PI/2}" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="8">
-    <origin xyz="-0.118 0.22 0.29" rpy="0 0 ${M_PI/2}" />
+    <origin xyz="-0.233 0.22 0.19" rpy="0 0 ${M_PI/2}" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="9">
-    <origin xyz="-0.22 0.122 0.29" rpy="0 0 ${M_PI}" />
+    <origin xyz="-0.335 0.122 0.19" rpy="0 0 ${M_PI}" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="10">
-    <origin xyz="-0.22 -0.122 0.29" rpy="0 0 ${M_PI}" />
+    <origin xyz="-0.335 0 0.19" rpy="0 0 ${M_PI}" />
   </xacro:xsugv_sonar_channel>
   <xacro:xsugv_sonar_channel channel="11">
-    <origin xyz="-0.22 0 0.29" rpy="0 0 ${M_PI}" />
+    <origin xyz="-0.335 -0.122 0.19" rpy="0 0 ${M_PI}" />
   </xacro:xsugv_sonar_channel>
 
   <xacro:xsugv_decorate />
@@ -251,33 +250,43 @@
   <!-- add the intel realsense -->
   <link name="realsense_mountpoint"/>
   <joint name="realsense_mountpoint_joint" type="fixed">
-    <origin xyz="0.456 0 0.465" rpy="0 0 0" />
+    <origin xyz="0.398 0 0.365" rpy="0 0 0" />
     <parent link="base_link"/>
     <child link="realsense_mountpoint" />
   </joint>
   <xacro:intel_realsense_mount prefix="camera" topic="realsense" parent_link="realsense_mountpoint"/>
 
-  <link name="rslidar"/>
+  <link name="rslidar">
+    <visual>
+      <material name="purple"/>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://xsugv_description/meshes/accessories/rslidar_32b.stl" />
+      </geometry>
+    </visual>
+  </link>
   <joint name="lidar_mountpoint_joint" type="fixed">
-    <origin xyz="0.390 0 0.496" rpy="0 0 0" />
+    <origin xyz="0.332 0 0.43" rpy="0 0 0" />
     <parent link="base_link"/>
     <child link="rslidar" />
   </joint>
-<!--   
+  <gazebo reference="rslidar">
+    <material>Gazebo/Purple</material>
+  </gazebo>
+
+  <!--
     Add the 3d laser
   -->
-
-  <!-- <xacro:VLP-16 parent="rslidar">
+<!--
+  <xacro:VLP-16 parent="rslidar">
     <origin xyz="0 0 0"/>
-  </xacro:VLP-16> -->
-
-<!-- <xacro:VLP-16 parent="rslidar" name="velodyne" topic="/velodyne_points" hz="10" samples="360" min_angle="-3.14" max_angle="3.14">
-  <origin xyz="0 0 0" rpy="0 0 0"/>
-</xacro:VLP-16> -->
-  <!-- <xacro:rslidar_32b>
+  </xacro:VLP-16>
+-->
+<!--
+  <xacro:rslidar_32b>
     <origin xyz="0.44 0 0.534"/>
-  </xacro:rslidar_32b> -->
-
+  </xacro:rslidar_32b>
+-->
 
   <gazebo>
     <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">

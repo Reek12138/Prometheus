@@ -4,8 +4,8 @@
   <arg name="robot_namespace" default="/"/>
   <arg name="aruco" default=""/>
 
-  <arg name="x" default="-1.0"/>
-  <arg name="y" default="2.0"/>
+  <arg name="x" default="0.0"/>
+  <arg name="y" default="0.0"/>
   <arg name="z" default="0.0"/>
   <arg name="yaw" default="0.0"/>
 
