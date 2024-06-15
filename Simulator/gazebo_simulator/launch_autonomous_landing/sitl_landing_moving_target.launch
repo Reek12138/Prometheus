@@ -56,7 +56,7 @@
 		<param name="dynamic_kdy_land" value="0.0" />
 		<param name="dynamic_kdz_land" value="0.0" />
 
-		<param name="arm_height_to_ground" value="0.2" />
+		<param name="arm_height_to_ground" value="0.4" />
 		<param name="arm_distance_to_pad" value="0.2" />
 		<!-- 目标是否移动及其速度 -->
 		<param name="moving_target" value="true" /><!--true for sim, false for test-->

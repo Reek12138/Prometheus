@@ -137,7 +137,6 @@ void NMPC::set_my_nmpc_solver()
 
     for(int k=0;k<m_predict_step;k++)
     {
-        // casadi::SX states_err = X(casadi::Slice(),k)-opt_para(casadi::Slice(3,6,1));
         casadi::SX states_err = X(casadi::Slice(),k)-opt_para(casadi::Slice(2,4,1));
         casadi::SX controls_err = U(casadi::Slice(),k);
         cost_fun = cost_fun+casadi::SX::mtimes({states_err.T(),m_Q,states_err})+
@@ -180,7 +179,7 @@ void NMPC::opti_solution(Eigen::Matrix<float,2,1> current_states)
     // vx约束
     for (int k = 0; k < m_predict_step; k++)
     {
-        // lbx.push_back(-0.6);
+        
         lbx.push_back(-0.6);
 
         ubx.push_back(0.6);
@@ -188,24 +187,17 @@ void NMPC::opti_solution(Eigen::Matrix<float,2,1> current_states)
     // vy约束
      for (int k = 0; k < m_predict_step; k++)
     {
-        // lbx.push_back(-0.6);
+        
         lbx.push_back(-0.6);
 
         ubx.push_back(0.6);
     }
-    // // vyaw约束
-    // for (int k = 0; k < m_predict_step; k++)
-    // {
-    //     lbx.push_back(-M_PI/2);
-
-    //     ubx.push_back(M_PI/2);
-    // }
-    // for(int j=0;j<3;j++)
+   
     for(int j=0;j<2;j++)
     {
         parameters.push_back(current_states[j]);
     }
-    // for(int j=0;j<3;j++)
+  
     for(int j=0;j<2;j++)
     {
         parameters.push_back(m_goal_states[j]);
@@ -230,8 +222,7 @@ void NMPC::opti_solution(Eigen::Matrix<float,2,1> current_states)
 
     res_control_vx.assign(res_control_all.begin(), res_control_all.begin() + m_predict_step);
     res_control_vy.assign(res_control_all.begin() + m_predict_step, res_control_all.begin() + 2 * m_predict_step);
-    // res_control_vyaw.assign(res_control_all.begin() +2 * m_predict_step, res_control_all.begin() + 3 * m_predict_step);
-
+   
     //存储下一时刻最初优化猜测解
     std::vector<float> initial_guess;
     // vx
@@ -246,23 +237,12 @@ void NMPC::opti_solution(Eigen::Matrix<float,2,1> current_states)
         initial_guess.push_back(res_control_vy.at(j));
     }
     initial_guess.push_back(res_control_vy.at(m_predict_step-1));
-    // // vyaw
-    // for(int j=0;j<m_predict_step-1;j++)
-    // {
-    //     initial_guess.push_back(res_control_vyaw.at(j));
-    // }
-    // initial_guess.push_back(res_control_vyaw.at(m_predict_step-1));
-
+    
     m_initial_guess = initial_guess;
 
-    // std::vector<float> initial_guess;
-    // initial_guess.insert(initial_guess.end(), res_control_v.begin(), res_control_v.end());
-    // initial_guess.insert(initial_guess.end(), res_control_omega.begin(), res_control_omega.end());
-    // m_initial_guess = initial_guess;
-
+    
 
     // 采用求解得到的控制序列的第一组作为当前控制量
-    // m_control_command << res_control_vx.front(), res_control_vy.front(),res_control_vyaw.front();
     m_control_command << res_control_vx.front(), res_control_vy.front();
 
     //预测轨迹
@@ -279,14 +259,7 @@ void NMPC::opti_solution(Eigen::Matrix<float,2,1> current_states)
 
     predict_X.push_back(current_states);
     
-    // for(int j=0;j<m_predict_step;j++)
-    // {
-    //     Eigen::Matrix<float,3,1> Next_X;
-    //     Next_X<< m_sample_time*res_control_v.at(j)*std::cos(predict_X.at(j)[2])+predict_X.at(j)[0]
-    //             ,m_sample_time*res_control_v.at(j)*std::sin(predict_X.at(j)[2])+predict_X.at(j)[1]
-    //             ,m_sample_time*res_control_omega.at(j)+predict_X.at(j)[2];
-    //     predict_X.push_back(Next_X);
-
+    
     // }
     for(int j=0; j<m_predict_step; j++)
     {
