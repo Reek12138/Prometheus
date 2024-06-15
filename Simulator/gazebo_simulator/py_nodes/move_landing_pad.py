@@ -11,7 +11,7 @@ from geometry_msgs.msg import Quaternion
 import tf.transformations
 from math import pi
 
-move_type = 1
+move_type = 2
 
 def euler_to_quaternion(roll, pitch, yaw):
     quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
@@ -68,6 +68,50 @@ def pose_publisher_circle():
         print('Pos_y :',pose_msg.pose.position.y)
         rate.sleep()
 
+def pose_publisher_acceleration():
+    pub = rospy.Publisher('gazebo/set_model_state', ModelState, queue_size=10)
+    pose_msg = ModelState()
+    pose_msg.model_name = 'car_landing_pad'
+    rate = rospy.Rate(100)
+    max_speed = 0.5  # 最大速度
+    acceleration = 0.1  # 加速度
+    pos = -5.0
+    time = 0.0
+    speed = 0.0
+    accelerating = True  # 标记是否在加速
+
+    while not rospy.is_shutdown():
+        if accelerating:
+            speed += acceleration * 0.01
+            if speed >= max_speed:
+                speed = max_speed
+                accelerating = False
+        else:
+            speed -= acceleration * 0.01
+            if speed <= 0:
+                speed = 0
+                accelerating = True
+
+        pos += speed * 0.01
+        time += 0.01
+        if pos > 30.0:
+            pos = -5.0
+            time = 0.0
+            speed = 0.0
+            accelerating = True
+        
+        pose_msg.pose.position.x = pos
+        pose_msg.pose.position.y = -2.0
+        pose_msg.pose.position.z = 0.01
+        quaternion = euler_to_quaternion(0, 0, 0)
+        pose_msg.pose.orientation = Quaternion(*quaternion)
+        
+        pub.publish(pose_msg)
+        print('Pos_x :', pose_msg.pose.position.x)
+        print('Pos_y :', pose_msg.pose.position.y)
+        print('Speed :', speed)
+        rate.sleep()
+
 if __name__ == '__main__':
       rospy.init_node('car_pose_publisher')
       try:
@@ -75,6 +119,8 @@ if __name__ == '__main__':
             pose_publisher_circle()
           elif move_type == 1:
             pose_publisher_line()
+          elif move_type == 2:    
+              pose_publisher_acceleration()
           
       except rospy.ROSInterruptException:
           pass
