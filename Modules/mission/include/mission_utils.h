@@ -185,4 +185,12 @@ Eigen::Matrix3f get_rotation_matrix(float phi, float theta, float psi)
 
     return R_Body_to_ENU;
 }
+
+// 旋转矩阵：从坐标系1到坐标系2
+Eigen::Matrix3f get_rotation_matrix_between_frames(float roll1, float pitch1, float yaw1, float roll2, float pitch2, float yaw2)
+{
+    Eigen::Matrix3f R1 = get_rotation_matrix(roll1, pitch1, yaw1);
+    Eigen::Matrix3f R2 = get_rotation_matrix(roll2, pitch2, yaw2);
+    return R2.transpose() * R1;
+}
 #endif

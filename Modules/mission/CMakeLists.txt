@@ -79,6 +79,12 @@ add_executable(gimbal_control_vel gimbal_control/gimbal_control_vel.cpp)
 add_dependencies(gimbal_control_vel prometheus_mission_gencpp)
 target_link_libraries(gimbal_control_vel ${catkin_LIBRARIES})
 
+
+add_executable(gimbal_control_landpad_track gimbal_control/gimbal_control_landpad_track.cpp)
+add_dependencies(gimbal_control_landpad_track prometheus_mission_gencpp)
+target_link_libraries(gimbal_control_landpad_track ${catkin_LIBRARIES})
+
+
 add_executable(pad_tracking test/pad_tracking.cpp)
 add_dependencies(pad_tracking prometheus_mission_gencpp)
 target_link_libraries(pad_tracking ${catkin_LIBRARIES})
@@ -127,6 +133,11 @@ add_executable(autonomous_landing autonomous_landing/autonomous_landing.cpp auto
 add_dependencies(autonomous_landing prometheus_mission_gencpp)
 target_link_libraries(autonomous_landing ${catkin_LIBRARIES})
 target_link_libraries(autonomous_landing /usr/local/lib/libcasadi.so.3.6) 
+
+add_executable(autonomous_landing_gimbal autonomous_landing/autonomous_landing_gimbal.cpp autonomous_landing/nmpc_ctr.cpp)
+add_dependencies(autonomous_landing_gimbal prometheus_mission_gencpp)
+target_link_libraries(autonomous_landing_gimbal ${catkin_LIBRARIES})
+target_link_libraries(autonomous_landing_gimbal /usr/local/lib/libcasadi.so.3.6) 
 
 add_executable(autonomous_landing_2 autonomous_landing/autonomous_landing_2.cpp autonomous_landing/nmpc_ctr_2.cpp)
 add_dependencies(autonomous_landing_2 prometheus_mission_gencpp)
