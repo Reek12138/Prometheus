@@ -18,12 +18,15 @@
 #include "mission_utils.h"
 #include "message_utils.h"
 #include "nmpc_ctr.h"
+#include "gimbal_control.h"
 
 
 using namespace std;
 using namespace Eigen;
 
-#define NODE_NAME "autonomous_landing"
+#define NODE_NAME "autonomous_landing_gimbal"
+#define PI 3.1415926
+
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>全 局 变 量<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 bool hold_mode; // 悬停模式，用于测试检测精度
 bool sim_mode;  // 选择Gazebo仿真模式 或 真实实验模式
@@ -40,6 +43,7 @@ std_msgs::Bool flag_start;
 //---------------------------------------Drone---------------------------------------------
 prometheus_msgs::DroneState _DroneState;    // 无人机状态
 Eigen::Matrix3f R_Body_to_ENU;              // 无人机机体系至惯性系转换矩阵
+Eigen::Matrix3f R_camera_to_body;        //吊仓到机体的转换矩阵
 //---------------------------------------Vision---------------------------------------------
 nav_msgs::Odometry GroundTruth;             // 降落板真实位置（仿真中由Gazebo插件提供）
 Detection_result landpad_det;               // 检测结果
@@ -49,6 +53,28 @@ float kd_land[3];           //控制参数 - 微分参数
 
 float dynamic_kp_land[3];         //控制参数 - 比例参数
 float dynamic_kd_land[3];           //控制参数 - 微分参数
+
+// -------------------------------gimbal_tracking-----------------------------------
+float sight_angle[2];
+float k_gimbal_p, k_gimbal_i, k_gimbal_d;
+double gimbal_window_size;
+
+std::deque<float> pitch_window;
+std::deque<float> yaw_window;
+
+Eigen::Vector3d gimbal_att_sp;
+Eigen::Vector3d gimbal_att_sp_init(0.0,-60.0,0.0);
+Eigen::Vector3d gimbal_att;
+Eigen::Vector3d gimbal_att_deg;
+Eigen::Vector3d gimbal_att_rate;
+Eigen::Vector3d gimbal_att_rate_deg;
+Eigen::Vector3d gimbal_att_sp_deg;
+
+// 计算误差的变化率
+float last_smoothed_pitch = 0.0;
+float last_smoothed_yaw = 0.0;
+
+float gimbal_rate;
 
 
 Eigen::Vector3f last_tracking_position = Eigen::Vector3f::Zero();
@@ -86,6 +112,8 @@ int window_size;
 
 float delta;
 
+
+
 // 五种状态机
 enum EXEC_STATE
 {
@@ -107,17 +135,37 @@ void printf_param();                                                            
 void printf_result();
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>回调函数<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 void landpad_det_cb(const prometheus_msgs::DetectionInfo::ConstPtr &msg)
+// """
+// 目标的三维位置 (pose_now.position): [x, y, z]
+// 目标的姿态（欧拉角）(pose_now.attitude): [roll, pitch, yaw]
+// 目标的姿态（四元数）(pose_now.attitude_q): [qx, qy, qz, qw]
+// 视角角度 (pose_now.sight_angle): [angle_x, angle_y]
+// 偏航误差 (pose_now.yaw_error)
+// """
 {
     landpad_det.object_name = "landpad";
     landpad_det.Detection_info = *msg;
     // 识别算法发布的目标位置位于相机坐标系（从相机往前看，物体在相机右方x为正，下方y为正，前方z为正）
     // 相机安装误差 在mission_utils.h中设置
-    landpad_det.pos_body_frame[0] = - landpad_det.Detection_info.position[1] + camera_offset[0];
-    landpad_det.pos_body_frame[1] = - landpad_det.Detection_info.position[0] + camera_offset[1];
-    landpad_det.pos_body_frame[2] = - landpad_det.Detection_info.position[2] + camera_offset[2];
+    Eigen::Vector3f pos_gimbal_frame;
+    pos_gimbal_frame[0] = - landpad_det.Detection_info.position[1];
+    pos_gimbal_frame[1] = - landpad_det.Detection_info.position[0];
+    pos_gimbal_frame[2] = - landpad_det.Detection_info.position[2];
+
+    Eigen::Vector3f pos_body_frame_no_offset = R_camera_to_body * pos_gimbal_frame;
+    landpad_det.pos_body_frame[0] = pos_body_frame_no_offset[0] + camera_offset[0];
+    landpad_det.pos_body_frame[1] = pos_body_frame_no_offset[1] + camera_offset[1];
+    landpad_det.pos_body_frame[2] = pos_body_frame_no_offset[2] + camera_offset[2];
+
+    landpad_det.pos_body_enu_frame = R_Body_to_ENU * landpad_det.pos_body_frame;
+
+    // landpad_det.pos_body_frame[0] = - landpad_det.Detection_info.position[1] + camera_offset[0];
+    // landpad_det.pos_body_frame[1] = - landpad_det.Detection_info.position[0] + camera_offset[1];
+    // landpad_det.pos_body_frame[2] = - landpad_det.Detection_info.position[2] + camera_offset[2];
     landpad_det.att_body_frame[0] = landpad_det.Detection_info.attitude[0];//yaw 顺时针为负
     landpad_det.att_body_frame[1] = landpad_det.Detection_info.attitude[1];//pitch
     landpad_det.att_body_frame[2] = landpad_det.Detection_info.attitude[2];//roll 
+
     
     // 机体系 -> 机体惯性系 (原点在机体的惯性系) (对无人机姿态进行解耦)
     landpad_det.pos_body_enu_frame = R_Body_to_ENU * landpad_det.pos_body_frame;
@@ -149,12 +197,16 @@ void landpad_det_cb(const prometheus_msgs::DetectionInfo::ConstPtr &msg)
     if(landpad_det.num_lost > VISION_THRES)
     {
         landpad_det.is_detected = false;
+        sight_angle[0] = 0.0;
+        sight_angle[1] = 0.0;
     }
 
     // 当连续一段时间检测到目标时，认定目标得到
     if(landpad_det.num_regain > VISION_THRES)
     {
         landpad_det.is_detected = true;
+        sight_angle[0] = landpad_det.Detection_info.sight_angle[0];
+        sight_angle[1] = landpad_det.Detection_info.sight_angle[1];
     }
 
 
@@ -162,9 +214,15 @@ void landpad_det_cb(const prometheus_msgs::DetectionInfo::ConstPtr &msg)
 
 void drone_state_cb(const prometheus_msgs::DroneState::ConstPtr& msg)
 {
+    // gimbal_control gimbal_control_;
+
     _DroneState = *msg;
 
     R_Body_to_ENU = get_rotation_matrix(_DroneState.attitude[0], _DroneState.attitude[1], _DroneState.attitude[2]);
+
+    // gimbal_att = gimbal_control_.get_gimbal_att();
+    // R_camera_to_body = get_rotation_matrix(gimbal_att[0], gimbal_att[1], gimbal_att[2]);
+
 }
 
 void groundtruth_cb(const nav_msgs::Odometry::ConstPtr& msg)
@@ -254,10 +312,47 @@ void landing_pad_cb(const nav_msgs::Odometry::ConstPtr& msg){
 
     landing_pad_states << x,y;
 }
+
+float calculate_average(const std::deque<float>& window) {
+    float sum = std::accumulate(window.begin(), window.end(), 0.0);
+    return sum / window.size();
+}
+void gimbal_control_cb(const ros::TimerEvent& e) {
+    // 更新滑动窗口
+    if (pitch_window.size() >= gimbal_window_size) {
+        pitch_window.pop_front();
+    }
+    if (yaw_window.size() >= gimbal_window_size) {
+        yaw_window.pop_front();
+    }
+
+    pitch_window.push_back(sight_angle[1]);
+    yaw_window.push_back(sight_angle[0]);
+
+    // 计算平滑后的视场角误差P
+    float smoothed_pitch = calculate_average(pitch_window);
+    float smoothed_yaw = calculate_average(yaw_window);
+
+    // 计算平滑后的视场角误差D
+    float pitch_error_rate = 0.0;
+    float yaw_error_rate = 0.0;
+
+    pitch_error_rate = smoothed_pitch - last_smoothed_pitch;
+    yaw_error_rate = smoothed_yaw - last_smoothed_yaw;
+
+    last_smoothed_pitch = smoothed_pitch;
+    last_smoothed_yaw = smoothed_yaw;
+
+     // 使用平滑后的视场角误差进行控制
+    gimbal_att_sp[0] = 0.0;
+    gimbal_att_sp[1] = gimbal_att_deg[1] - k_gimbal_p * smoothed_pitch / PI * 180; // pitch
+    // gimbal_att_sp[2] = gimbal_att_deg[2] + k_gimbal_p * smoothed_yaw / PI * 180; // yaw
+    gimbal_att_sp[2] = 0.0; // yaw
+}
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>主函数<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "autonomous_landing");
+    ros::init(argc, argv, "autonomous_landing_gimbal");
     ros::NodeHandle nh("~");
 
     // 节点运行频率： 20hz 【视觉端解算频率大概为20HZ】
@@ -306,6 +401,14 @@ int main(int argc, char **argv)
     int predict_step = 50;
     float sample_time = 0.1;
     NMPC nmpc_ctr(predict_step, sample_time);
+
+    //吊舱控制timer
+    ros::Timer timer = nh.createTimer(ros::Duration(gimbal_rate), gimbal_control_cb);
+    gimbal_control gimbal_control_;
+    gimbal_att = gimbal_control_.get_gimbal_att();
+    gimbal_att_deg = gimbal_att/PI*180;
+    R_camera_to_body = get_rotation_matrix(gimbal_att[0], gimbal_att[1], gimbal_att[2]);
+
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>参数读取<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     
     //强制上锁高度
@@ -370,6 +473,16 @@ int main(int argc, char **argv)
     nh.param<float>("true_target_vel_y",true_target_vel[1],1.0);//测试用,目标x方向速度
 
     nh.param<int>("window_size",window_size,10);//滑动窗口大小
+
+    // 吊仓追踪参数
+    nh.param<float>("gimbal_rate", gimbal_rate, 0.1);
+    nh.param<float>("k_gimbal_p", k_gimbal_p, 0.5 );
+    nh.param<float>("k_gimbal_i", k_gimbal_i, 0.1 );
+    nh.param<float>("k_gimbal_d", k_gimbal_d, 0.5 );
+    nh.param<double>("gimbal_window_size", gimbal_window_size, 5);
+    // gimbal_control gimbal_control_;
+
+
     //打印现实检查参数
     printf_param();
 
@@ -454,6 +567,7 @@ int main(int argc, char **argv)
         //回调
         ros::spinOnce();
 
+
         static int printf_num = 0;
         printf_num++;
         // 此处是为了控制打印频率
@@ -497,6 +611,9 @@ int main(int argc, char **argv)
             // 初始状态，等待视觉检测结果
             case WAITING_RESULT:
             {
+                // 发送吊仓指令
+                gimbal_control_.send_mount_control_command(gimbal_att_sp_init);
+
                 if(landpad_det.is_detected)
                 {
                     exec_state = TRACKING;
@@ -520,6 +637,7 @@ int main(int argc, char **argv)
             // 追踪状态
             case TRACKING:
             {
+
                 if (!is_tracking_initialized) {
                     is_tracking_initialized = true;
                     last_tracking_time = ros::Time::now();
@@ -539,27 +657,7 @@ int main(int argc, char **argv)
                     break;
                 }   
 
-                // 抵达上锁点,进入LANDING
                 distance_to_pad = landpad_det.pos_body_enu_frame.norm();
-                // //　达到降落距离，上锁降落
-                // if(distance_to_pad < arm_distance_to_pad)
-                // {
-                //     exec_state = LANDING;
-                //     message = "Catched the Landing Pad.";
-                //     cout << message <<endl;
-                //     pub_message(message_pub, prometheus_msgs::Message::WARN, NODE_NAME, message);
-                //     break;
-                // }
-                // //　达到最低高度，上锁降落
-                // else if(abs(landpad_det.pos_body_enu_frame[2]) < arm_height_to_ground)
-                // {
-                //     exec_state = LANDING;
-                //     message = "Reach the lowest height.";
-                //     cout << message <<endl;
-                //     pub_message(message_pub, prometheus_msgs::Message::WARN, NODE_NAME, message);
-                //     break;
-                // }
-
                 if(distance_to_pad < dynamic_distance && abs(landpad_det.pos_body_enu_frame[2] ) < dynamic_height){
                 // if(velocity[0]<0.05 && velocity[1]<0.05){
                     exec_state = DYNAMIC_LANDING;
@@ -568,47 +666,8 @@ int main(int argc, char **argv)
                     break;
                 }
 
-                // 机体系速度控制
-                // Command_Now.header.stamp = ros::Time::now();
-                // Command_Now.Command_ID   = Command_Now.Command_ID + 1;
-                // Command_Now.source = NODE_NAME;
-                // Command_Now.Mode = prometheus_msgs::ControlCommand::Move;
-                // Command_Now.Reference_State.Move_frame = prometheus_msgs::PositionReference::ENU_FRAME;
-                // Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XYZ_VEL;   //xy velocity z position
-                
-                // // 计算当前误差
-                // Eigen::Vector3f current_error = landpad_det.pos_body_enu_frame;
-
-                // // 计算微分项
-                // Eigen::Vector3f derivative;
-                // for (int i = 0; i < 3; i++) {
-                //     derivative[i] = (current_error[i] - last_error[i]);
-                // }
-                // last_error = current_error; // 更新上一周期的误差
-
-                // for (int i=0; i<3; i++)
-                // {
-                //     // Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i];
-                //     Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i] + kd_land[i] * velocity2[i];
-                // }
-
-                // float target_vel[3];
-                // for(int i=0; i<3; i++){
-                //     // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
-                //     target_vel[i] = _DroneState.velocity[i] + velocity[i];
-                // }
-                
-                // if(moving_target )//这里简单加上目标速度效果并不好
-                // {
-                //     // Command_Now.Reference_State.velocity_ref[0] += 0.3 * target_vel_xy[0];
-                //     // Command_Now.Reference_State.velocity_ref[1] += 0.3 * target_vel_xy[1];
-                //     Command_Now.Reference_State.velocity_ref[0] += k * target_vel[0];
-                //     Command_Now.Reference_State.velocity_ref[1] += k * target_vel[1];
-                // }
-
-                // Command_Now.Reference_State.yaw_ref             = 0.0;
-                //Publish
-
+                // 发送吊仓指令
+                gimbal_control_.send_mount_control_command(gimbal_att_sp);
                 //【 调用nmpc求解】>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                 
                 Eigen::Vector2f goal_state ;
@@ -646,16 +705,6 @@ int main(int argc, char **argv)
                     command_pub.publish(Command_Now);
                 }
 
-                // // 使用累加速度计算平均速度,适用于匀速目标>>>>>>>>>>>>>>>>>
-                // float target_vel[3];
-                // for(int i=0; i<3; i++){
-                //     // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
-                //     target_vel[i] = _DroneState.velocity[i] + velocity[i];
-                //     vel_sum[i] +=target_vel[i];
-                // }
-                // num +=1;
-                // Eigen::Vector3f ave_target_vel = vel_sum/num;
-
                 // 使用滑动窗口计算平均速度,适用于变速目标>>>>>>>>>>>>>>>>>>>>>>>
                 Eigen::Vector3f target_vel;
                 Eigen::Vector3f ave_target_vel;
@@ -689,6 +738,9 @@ int main(int argc, char **argv)
 
             case DYNAMIC_LANDING:
             {
+                // 发送吊仓指令
+                gimbal_control_.send_mount_control_command(gimbal_att_sp_init);
+
                 if (!dynamic_tracking_initialized) {
                     dynamic_tracking_initialized = true;
                     last_tracking_time = ros::Time::now();
@@ -737,32 +789,13 @@ int main(int argc, char **argv)
                 Command_Now.Reference_State.Move_frame = prometheus_msgs::PositionReference::ENU_FRAME;
                 Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XYZ_VEL;   //xy velocity z position
                 
-                // // 计算当前误差
-                // Eigen::Vector3f current_error = landpad_det.pos_body_enu_frame;
-
-                // // 计算微分项
-                // Eigen::Vector3f derivative;
-                // for (int i = 0; i < 3; i++) {
-                //     derivative[i] = (current_error[i] - last_error[i]);
-                // }
-                // last_error = current_error; // 更新上一周期的误差
-                // landpad_det.pos_body_enu_frame[0] = -landpad_det.pos_body_enu_frame[0];
-                // landpad_det.pos_body_enu_frame[1] = -landpad_det.pos_body_enu_frame[1];
+               
                 for (int i=0; i<3; i++)
                 {
                     // Command_Now.Reference_State.velocity_ref[i] = kp_land[i] * landpad_det.pos_body_enu_frame[i];
                     Command_Now.Reference_State.velocity_ref[i] = dynamic_kp_land[i] * landpad_det.pos_body_enu_frame[i] + dynamic_kd_land[i] * velocity2[i];
                 }
 
-                // // 使用累加速度计算平均速度,适用于匀速目标>>>>>>>>>>>>>>>>>
-                // float target_vel[3];
-                // for(int i=0; i<3; i++){
-                //     // target_vel[i] = Command_Now.Reference_State.velocity_ref[i] + velocity[i];
-                //     target_vel[i] = _DroneState.velocity[i] + velocity[i];
-                //     vel_sum[i] +=target_vel[i];
-                // }
-                // num +=1;
-                // Eigen::Vector3f ave_target_vel = vel_sum/num;
 
                 // 使用滑动窗口计算平均速度,适用于变速目标>>>>>>>>>>>>>>>>>>>>>>>
                 Eigen::Vector3f target_vel;
@@ -835,6 +868,10 @@ int main(int argc, char **argv)
 
             case LOST:
             {
+
+                // 发送吊仓指令
+                gimbal_control_.send_mount_control_command(gimbal_att_sp_init);
+
                 static int lost_time = 0;
                 lost_time ++ ;
                 
@@ -988,5 +1025,8 @@ void printf_param()
     cout << "moving_target : "<< moving_target << endl;
     cout << "target_vel_x : "<< target_vel_xy[0] << endl;
     cout << "target_vel_y : "<< target_vel_xy[1] << endl;
+
+    cout << "gimbal_att    : " << gimbal_att_deg[0] << " [deg] "<< gimbal_att_deg[1] << " [deg] "<< gimbal_att_deg[2] << " [deg] "<<endl;
+
 }
 

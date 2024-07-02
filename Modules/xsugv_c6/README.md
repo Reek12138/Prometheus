@@ -18,5 +18,10 @@ C6 ROS
     export ROS_IP=172.24.$XSUGV_ID.101  # ROS控制器IP
 
 
-3. 在 Startup Applications 中添加开机启动项， 启动脚本 /data/ros/xsugv_c6/src/xsugv/script/startup.sh
+3. 在 Startup Applications 中添加开机启动项， 启动脚本 /data/ros/xsugv_c6/src/xsugv/script/startup.sh     
+
+
+在Modules/xsugv_c6/src/xsugv_description/launch/description.launch中，切换vlp16或者降落板
+<param name="robot_description" command="$(find xacro)/xacro '$(find xsugv_description)/urdf/xsugv_c6_ros（_vlp16）.urdf.xacro'
+
 
