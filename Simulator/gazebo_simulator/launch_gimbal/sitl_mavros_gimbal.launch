@@ -1,0 +1,109 @@
+<launch>
+  <!-- ========== STEP [1] 启动 PX4 SITL 仿真 ========== -->
+	<!-- 这里的环境变量将传递到rcS启动脚本中-->
+	<!-- 模型选择 -->
+	<!-- typhoon_h480仿真模型 -->
+	<env name="PX4_SIM_MODEL" value="typhoon_h480" />
+	<!-- 估计器参数选择 可选ekf2_vision和ekf2_gps-->
+	<!-- ekf2_gps 使用GPS作为定位来源， ekf2_vision 使用外部输入（gazebo真值、slam等）作为定位来源-->
+	<!-- 参看 ~/prometheus_px4/ROMFS/px4fmu_common/init.d-posix/rcS 中的修改内容 -->
+	<env name="PX4_ESTIMATOR" value="ekf2_vision" />
+	<!-- 仿真速度因子 1.0代表与真实时间同步，大于1加快仿真速度，小于1则减慢 （电脑性能较差，可选择减小该参数）-->
+	<env name="PX4_SIM_SPEED_FACTOR" value="1.0" />
+	<!-- PX4 configs -->
+	<arg name="interactive" default="true"/>
+	<!-- PX4 SITL -->
+	<arg unless="$(arg interactive)" name="px4_command_arg1" value="-d"/>
+	<arg     if="$(arg interactive)" name="px4_command_arg1" value=""/>
+	<!-- 节点源文件路径: ~/prometheus_px4/platforms/posix/src/px4/common/main.cpp -->
+	<node name="sitl" pkg="px4" type="px4" output="screen" 
+		args="$(find px4)/ROMFS/px4fmu_common -s etc/init.d-posix/rcS $(arg px4_command_arg1)"/>
+	<!-- ========== ========== ========== -->
+
+	<!-- ========== STEP [2] 启动 Gazebo 仿真环境 ========== -->
+	<!-- Gazebo configs -->
+	<arg name="gui" default="true"/>
+	<arg name="debug" default="false"/>
+	<arg name="verbose" default="false"/>
+	<arg name="paused" default="false"/>
+	<arg name="respawn_gazebo" default="false"/>
+	<arg name="world" default="$(find prometheus_gazebo)/worlds/coordinate.world"/>
+	<!-- <arg name="world" default="$(find testpkg)/model/world/camera_calibration.world"/> -->
+    <!-- Gazebo sim -->
+	<include file="$(find gazebo_ros)/launch/empty_world.launch">
+		<arg name="gui" value="$(arg gui)"/>
+		<arg name="debug" value="$(arg debug)"/>
+		<arg name="verbose" value="$(arg verbose)"/>
+		<arg name="paused" value="$(arg paused)"/>
+		<arg name="respawn_gazebo" value="$(arg respawn_gazebo)"/>
+		<arg name="world_name" value="$(arg world)"/>
+	</include>
+	<!-- ========== ========== ========== -->
+
+	<!-- ========== STEP [3] 在 Gazebo 地图中生成模型 ========== -->
+	<!-- Spawn vehicle model -->
+	<!-- https://github.com/ros-simulation/gazebo_ros_pkgs/blob/kinetic-devel/gazebo_ros/scripts/spawn_model -->
+	<!-- 初始位置 -->
+	<arg name="x" default="0.0"/>
+	<arg name="y" default="0.0"/>
+	<arg name="z" default="0.3"/>
+	<arg name="R" default="0.0"/>
+	<arg name="P" default="0.0"/>
+	<arg name="Y" default="0.0"/>
+	<arg name="sdf" default="$(find prometheus_gazebo)/amov_models/typhoon_h480/typhoon_h480.sdf"/>
+	<arg name="model" default="typhoon_h480"/>
+	<node name="$(anon vehicle_spawn)" pkg="gazebo_ros" type="spawn_model" output="screen" 
+		args="-sdf -file $(arg sdf) -model $(arg model) -x $(arg x) -y $(arg y) -z $(arg z) -R $(arg R) -P $(arg P) -Y $(arg Y)">
+	</node>
+  <!-- ========== ========== ========== -->
+
+	<!-- ========== STEP [4] 启动 mavros 节点 ========== -->
+	<node pkg="mavros" type="mavros_node" name="mavros" output="screen">
+		<param name="fcu_url" value="udp://:14540@localhost:14557" />
+		<param name="gcs_url" value="" />
+		<param name="target_system_id" value="1" />
+		<param name="target_component_id" value="1" />
+		<!-- ++++++++++ [PARAMETER] 配置文件 ++++++++++ -->
+		<rosparam command="load" file="$(find testpkg)/config/experiment_config/px4_pluginlists_gps.yaml" />
+		<!-- ++++++++++ [PARAMETER] 配置文件 ++++++++++ -->
+		<rosparam command="load" file="$(find testpkg)/config/experiment_config/px4_config_gps.yaml" />
+	</node>
+  <!-- ========== ========== ========== -->
+	
+	<!-- ========== STEP [5] 启动 Prometheus 和飞控通信 ========== -->
+	<node pkg="prometheus_control" type="px4_pos_estimator" name="px4_pos_estimator" output="screen">
+		<!-- 定位数据输入源 0 for vicon， 1 for 激光SLAM, 2 for gazebo ground truth, 3 for T265 -->
+		<param name="input_source" value="2" />
+		<param name="rate_hz" value="20" />
+		<param name="offset_x" value="0" />
+		<param name="offset_y" value="0" />
+		<param name="offset_z" value="0" />
+	</node>
+
+	<node pkg="prometheus_control" type="px4_sender" name="px4_sender" output="screen">
+		<!-- ++++++++++ [PARAMETER] 配置文件 ++++++++++ -->
+    <rosparam command="load" file="$(find testpkg)/config/experiment_config/px4_sender_outdoor.yaml"/>
+	</node>
+	<!-- ========== ========== ========== -->
+
+	<!-- ========== STEP [6] 启动 雷达 tf ========== -->
+	<include file="$(find testpkg)/launch/include/tf_transform_gps.launch">
+  </include>
+  <!-- ========== ========== ========== -->
+
+	<!-- ========== STEP [7] 启动 云台控制和状态反馈 ========== -->
+	<!-- run the gimbal_control.cpp -->
+	<node pkg="prometheus_mission" type="gimbal_control" name="gimbal_control" output="screen" launch-prefix="gnome-terminal --">
+	</node>
+
+	<!-- 好像不需要？直接可以用 gimbal_control 进行控制 -->
+	<!-- <node pkg="testpkg" type="gimbal_topic_forward.py" name="gimbal_topic_forward" output="screen"/> -->
+	<!-- ========== ========== ========== -->
+
+</launch>
+
+
+
+
+	
+
