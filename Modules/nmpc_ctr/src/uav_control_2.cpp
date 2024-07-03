@@ -8,6 +8,7 @@
 #include <tf/tf.h>
 
 #include "prometheus_msgs/ControlCommand.h"
+#include "prometheus_msgs/DroneState.h"
 #include "std_msgs/Header.h"
 #include <cmath> // 引入 std::round
 /**
@@ -59,7 +60,7 @@ public:
 public:
     CurrentStatesListener();
     ~CurrentStatesListener();
-    void callback(const nav_msgs::Odometry::ConstPtr& msg);
+    void callback(const prometheus_msgs::DroneState::ConstPtr& msg);
 };
 
 CurrentStatesListener::CurrentStatesListener()
@@ -72,18 +73,38 @@ CurrentStatesListener::~CurrentStatesListener()
 
 }
 
-void CurrentStatesListener::callback(const nav_msgs::Odometry::ConstPtr& msg)
+// void CurrentStatesListener::callback(const nav_msgs::Odometry::ConstPtr& msg)
+// {
+//     double x, y, z;
+//     double roll, pitch, yaw;
+//     x = msg->pose.pose.position.x;
+//     y = msg->pose.pose.position.y;
+//     z = msg->pose.pose.position.z;
+//     //四元数转欧拉角
+//     tf::Quaternion quat;                                     //定义一个四元数
+//     tf::quaternionMsgToTF(msg->pose.pose.orientation, quat); //取出方向存储于四元数
+//     tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);
+    
+//     m_current_states<<x,y,yaw;
+// }
+void CurrentStatesListener::callback(const prometheus_msgs::DroneState::ConstPtr& msg)
 {
     double x, y, z;
     double roll, pitch, yaw;
-    x = msg->pose.pose.position.x;
-    y = msg->pose.pose.position.y;
-    z = msg->pose.pose.position.z;
-    //四元数转欧拉角
-    tf::Quaternion quat;                                     //定义一个四元数
-    tf::quaternionMsgToTF(msg->pose.pose.orientation, quat); //取出方向存储于四元数
-    tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);
-    
+    // x = msg->pose.pose.position.x;
+    // y = msg->pose.pose.position.y;
+    // z = msg->pose.pose.position.z;
+    // //四元数转欧拉角
+    // tf::Quaternion quat;                                     //定义一个四元数
+    // tf::quaternionMsgToTF(msg->pose.pose.orientation, quat); //取出方向存储于四元数
+    // tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);
+    x = msg->position[0];
+    y = msg->position[1];
+    z = msg->position[2];
+    roll = msg ->attitude[0];
+    pitch = msg ->attitude[1];
+    yaw = msg->attitude[2];
+    // m_current_states<<x,y,yaw;
     m_current_states<<x,y,yaw;
 }
 
@@ -112,7 +133,7 @@ int main(int argc, char **argv)
     //创建监听对象
     CurrentStatesListener mlistener2;
 
-    ros::Subscriber sub2 = n.subscribe("/prometheus/drone_odom",100,&CurrentStatesListener::callback,&mlistener2);
+    ros::Subscriber sub2 = n.subscribe("/prometheus/drone_state",100,&CurrentStatesListener::callback,&mlistener2);
 
     //创建控制量发布对象
     ros::Publisher controls_pub =n.advertise<prometheus_msgs::ControlCommand>("/prometheus/control_command",100);
