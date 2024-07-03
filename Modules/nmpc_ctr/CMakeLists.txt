@@ -15,6 +15,14 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   visualization_msgs
   prometheus_msgs
+  message_generation  
+  sensor_msgs
+  mavros
+  std_srvs
+  tf2_ros
+  tf2_eigen
+  mavros_msgs
+
 )
 
 set(CMAKE_BUILD_TYPE Debug)
@@ -127,6 +135,7 @@ catkin_package(
 #  LIBRARIES nmpc_ctr
 #  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs
 #  DEPENDS system_lib
+# CATKIN_DEPENDS  message_runtime
 )
 
 ###########
@@ -138,6 +147,8 @@ catkin_package(
 include_directories(
   # include
   ${catkin_INCLUDE_DIRS}
+  ../common/include
+  ../control/include
   ./include/nmpc_ctr/
 )
 
@@ -237,10 +248,16 @@ include_directories(
 # target_link_libraries(formation_ctr_3 ${catkin_LIBRARIES})
 # target_link_libraries(formation_ctr_3 /usr/local/lib/libcasadi.so.3.6) 
 
-add_executable(uav_control src/nmpc_ctr.cpp src/uav_control.cpp)
+add_executable(uav_control nmpc_ctr/nmpc_ctr.cpp src/uav_control.cpp)
 target_link_libraries(uav_control ${catkin_LIBRARIES})
 target_link_libraries(uav_control /usr/local/lib/libcasadi.so.3.6) 
 
-add_executable(uav_control_2 src/nmpc_ctr_2.cpp src/uav_control_2.cpp)
+add_executable(uav_control_2 nmpc_ctr/nmpc_ctr_2.cpp src/uav_control_2.cpp)
 target_link_libraries(uav_control_2 ${catkin_LIBRARIES})
 target_link_libraries(uav_control_2 /usr/local/lib/libcasadi.so.3.6) 
+
+add_executable(autonomous_landing_gimbal src/autonomous_landing_gimbal.cpp nmpc_ctr/nmpc_ctr.cpp)
+# find_package(prometheus_mission REQUIRED)
+# add_dependencies(autonomous_landing_gimbal prometheus_mission_gencpp)
+target_link_libraries(autonomous_landing_gimbal ${catkin_LIBRARIES})
+target_link_libraries(autonomous_landing_gimbal /usr/local/lib/libcasadi.so.3.6) 
