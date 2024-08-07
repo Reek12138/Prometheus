@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(nmpc_ctr)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+## Compile as c++14, supported in ROS Kinetic and newer
+# add_compile_options(-std=c++14)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -23,7 +23,13 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_eigen
   mavros_msgs
 
+  cv_bridge
+  image_transport
+
 )
+
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 set(CMAKE_BUILD_TYPE Debug)
 
@@ -98,7 +104,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS  message_runtime
+  CATKIN_DEPENDS  message_runtime cv_bridge image_transport
 )
 
 ################################################
@@ -261,3 +267,8 @@ add_executable(autonomous_landing_gimbal src/autonomous_landing_gimbal.cpp nmpc_
 # add_dependencies(autonomous_landing_gimbal prometheus_mission_gencpp)
 target_link_libraries(autonomous_landing_gimbal ${catkin_LIBRARIES})
 target_link_libraries(autonomous_landing_gimbal /usr/local/lib/libcasadi.so.3.6) 
+
+add_executable(landpad_det
+    src/landpad_det.cpp
+)
+target_link_libraries(landpad_det ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${OpenCV_LIBS} yaml-cpp)

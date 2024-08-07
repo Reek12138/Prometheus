@@ -121,8 +121,8 @@ void ImageProcessor::processStereo(const sensor_msgs::ImageConstPtr& msgLeft, co
 
     if(leftImage.channels() == 3)
     {
-        cv::cvtColor(leftImage, leftImage, CV_BGR2GRAY);
-        cv::cvtColor(rightImage, rightImage, CV_BGR2GRAY);
+        cv::cvtColor(leftImage, leftImage, cv::COLOR_BGR2GRAY);
+        cv::cvtColor(rightImage, rightImage, cv::COLOR_BGR2GRAY);
     }
     // std::string filename = "tum_mynt.txt";
     // Save the data to tum file

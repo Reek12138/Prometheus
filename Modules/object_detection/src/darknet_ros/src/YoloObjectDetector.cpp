@@ -576,7 +576,7 @@ void YoloObjectDetector::yolo()
 IplImage* YoloObjectDetector::getIplImage()
 {
   boost::shared_lock<boost::shared_mutex> lock(mutexImageCallback_);
-  IplImage* ROS_img = new IplImage(camImageCopy_);
+  cv::Mat ROS_img = camImageCopy_.clone();
   return ROS_img;
 }
 

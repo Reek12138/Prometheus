@@ -1,0 +1,52 @@
+<launch>
+    <!-- <arg name="camera_width" default="480" /> -->
+    <!-- <arg name="camera_hight" default="640" /> -->
+    <node pkg="prometheus_gimbal_control" type="gimbal_server" name="gimbal" launch-prefix="gnome-terminal --tab --">
+        <!-- 相机id -->
+        <param name="camera_id" type="int" value="0" />
+        <param name="camera_width" type="int" value="640" />
+        <param name="camera_height" type="int" value="480" />
+        <param name="tty_url" type="string" value="/dev/right_down" />
+        <param name="save_path" type="string" value="gimbal_data" />
+        <param name="gimbal_type" type="string" value="q10f" />
+    </node>
+
+    
+
+	<node pkg="mavros" type="mavros_node" name="mavros" output="screen">
+		<param name="fcu_url" value="/dev/ttyTHS0:921600" />
+		<!--param name="gcs_url" value="udp://@192.168.31.46" / -->
+		<param name="gcs_url" value="" />
+		<param name="target_system_id" value="5" />
+		<param name="target_component_id" value="1" />
+		<rosparam command="load" file="$(find p600_experiment)/config/mavros_config/px4_pluginlists_gps.yaml" />
+		<rosparam command="load" file="$(find p600_experiment)/config/mavros_config/px4_config_gps.yaml" />
+	</node>
+
+    <node pkg="rqt_image_view" type="rqt_image_view" name="rqt_image_view"></node>
+
+    <!-- run the landpad_det.cpp -->
+    <node pkg="prometheus_detection" type="aruco_det" name="aruco_det" output="screen">
+        <param name="camera_topic" type="string" value="/gimbal/image_raw" />
+        <!-- <param name="camera_parameters" type="string" value="$(find prometheus_detection)/shell/calib_webcam_640x480.yaml" /> -->
+        <param name="camera_parameters" type="string" value="$(find prometheus_detection)/shell/camera_param_aruco_v2.yaml" />
+        <param name="output_pose_topic" type="string" value="/prometheus/object_detection/aruco_det" />
+        <param name="output_multi_pose_topic" type="string" value="/prometheus/object_detection/multi_aruco_det" />
+        <param name="output_image_topic" type="string" value="/prometheus/camera/rgb/image_aruco_det" />
+        <param name="dictionary_type" type="int" value="10" />
+        <param name="binding_id" type="int" value="19" />
+        <param name="target_marker_length" type="double" value="0.2" />
+    </node>
+
+    <node pkg="prometheus_mission" type="my_gimbal_tracking_aruco" name="my_gimbal_tracking_aruco" output="screen">
+        <param name="gimbal_rate" value="0.1"/>
+        <param name="k_gimbal_p" value="0.12"/>
+        <param name="k_gimbal_i" value="0.0"/>
+        <param name="k_gimbal_d" value="0.05"/>
+        <param name="init_pitch" value="60.0"/>
+        <param name="k_gimbal_p_vel" value="30"/>
+
+    </node>
+
+
+</launch>

@@ -13,7 +13,7 @@ catkin_package(
 
 include_directories(include ${Boost_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
-set_directory_properties(PROPERTIES COMPILE_OPTIONS "-std=c++11;")
+set_directory_properties(PROPERTIES COMPILE_OPTIONS "-std=c++14;")
 
 add_executable(xsugv_node
   src/xsugv_base.cpp
