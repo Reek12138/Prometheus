@@ -293,6 +293,28 @@ void mainloop_cb(const ros::TimerEvent &e)
                 acc_des(i) = Command_Now.acceleration_ref[i];
             }
             yaw_des = Command_Now.yaw_ref;
+        }else if(Command_Now.Move_mode == prometheus_msgs::SwarmCommand::XYZ_VEL)//update
+        {
+            pos_des[0] = 0.0;
+            pos_des[1] = 0.0;
+            pos_des[2] = 0.0;
+            vel_des[0] = Command_Now.velocity_ref[0];
+            vel_des[1] = Command_Now.velocity_ref[1];
+            vel_des[2] = Command_Now.velocity_ref[2];
+            acc_des << 0.0, 0.0, 0.0;
+            yaw_des = Command_Now.yaw_ref;
+        }else if(Command_Now.Move_mode == prometheus_msgs::SwarmCommand::XYZ_ACC)//update
+        {
+            pos_des[0] = 0.0;
+            pos_des[1] = 0.0;
+            pos_des[2] = 0.0;
+            vel_des[0] = 0.0;
+            vel_des[1] = 0.0;
+            vel_des[2] = 0.0;
+            acc_des[0] = Command_Now.acceleration_ref[0];
+            acc_des[1] = Command_Now.acceleration_ref[1];
+            acc_des[2] = Command_Now.acceleration_ref[2];
+            yaw_des = Command_Now.yaw_ref;
         }
         else
         {
@@ -362,6 +384,12 @@ void control_cb(const ros::TimerEvent &e)
             }else if(Command_Now.Move_mode == prometheus_msgs::SwarmCommand::TRAJECTORY)
             {
                 send_pos_vel_xyz_setpoint(pos_des, vel_des, yaw_des);
+            }else if(Command_Now.Move_mode == prometheus_msgs::SwarmCommand::XYZ_VEL)//update
+            {
+                send_vel_setpoint(vel_des, yaw_des);
+            }else if(Command_Now.Move_mode == prometheus_msgs::SwarmCommand::XYZ_ACC)//update
+            {
+                send_acc_xyz_setpoint(acc_des, yaw_des);
             }
             else
             {
