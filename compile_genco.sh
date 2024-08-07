@@ -1,0 +1,1 @@
+catkin_make --source Modules/genco --build build/genco

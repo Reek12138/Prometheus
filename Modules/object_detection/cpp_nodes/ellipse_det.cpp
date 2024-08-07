@@ -210,7 +210,7 @@ vector<float> hist_feature(cv::Mat& resized_im)  // 生成直方图，带入形�
     if (use_hog)
     {
         cv::Mat resized_im_gray;
-        cvtColor(resized_im, resized_im_gray, CV_BGR2GRAY);
+        cvtColor(resized_im, resized_im_gray, cv::COLOR_BGR2GRAY);
 
         // cout << "w, h: " << resized_im_gray.cols << ", " << resized_im_gray.rows << endl;
         vector<float> descriptors;  // HOG描述子向量

@@ -1704,7 +1704,7 @@ void EllipseDetector::Detect_ThreePoint(cv::Mat3b& I, std::vector<Ellipse>& elli
 
     // Convert to grayscale
     Mat1b gray;
-    cvtColor(I, gray, CV_BGR2GRAY);
+    cvtColor(I, gray, cv::COLOR_BGR2GRAY);
 
     Mat1b arcs8 = Mat1b::zeros(gray.size());
     PreProcessing(gray, arcs8);
@@ -1740,7 +1740,7 @@ void EllipseDetector::Detect(cv::Mat& I, std::vector<Ellipse>& ellipses)
     countOfGetFastCenter_ = 0;
 
     Mat1b gray;
-    cvtColor(I, gray, CV_BGR2GRAY);
+    cvtColor(I, gray, cv::COLOR_BGR2GRAY);
 
     // Set the image size
     szIm_ = I.size();
@@ -1799,7 +1799,7 @@ void EllipseDetector::Detect(Mat3b& I, vector<Ellipse>& ellipses)
 
     // Convert to grayscale
     Mat1b gray;
-    cvtColor(I, gray, CV_BGR2GRAY);
+    cvtColor(I, gray, cv::COLOR_BGR2GRAY);
 
     // Set the image size
     szIm_ = I.size();

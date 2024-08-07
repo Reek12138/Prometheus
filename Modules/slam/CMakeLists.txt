@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 project(prometheus_slam)
 
 find_package(PCL 1.7 REQUIRED)
