@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(prometheus_swarm_control)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+## Compile as c++14, supported in ROS Kinetic and newer
+# add_compile_options(-std=c++14)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -21,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_eigen
   mavros_msgs
   prometheus_msgs
+  
 )
 
 ## System dependencies are found with CMake's conventions

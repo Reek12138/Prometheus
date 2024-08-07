@@ -33,7 +33,7 @@ include_directories(
     /usr/local/include # add include path for nlopt
 )
 
-set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS} -O3 -Wall")
+set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS} -O3 -Wall")
 
 
 message(STATUS "Project: SERVER")
