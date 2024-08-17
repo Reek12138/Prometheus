@@ -131,7 +131,7 @@ int main(int argc, char **argv){
         ros::spinOnce();
 
         cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>Formation Flight Mission<<<<<<<<<<<<<<<<<<<<<<<<< "<< endl;
-        cout << "Please choose the action: 0 for Move Position, 1 for Move Velocity, 2 for Hold, 3 for Land, 4 for Disarm..."<<endl;
+        cout << "Please choose the action: 9 for traj_genco Start, 0 for Move Position, 1 for Move Velocity, 2 for Hold, 3 for Land, 4 for Disarm..."<<endl;
         cin >> start_flag;
         if(start_flag == 0){
             cout << "输入无人机目标位置" << endl;
@@ -200,6 +200,7 @@ int main(int argc, char **argv){
         else if(start_flag == 2){
             for(int i = 1; i <= swarm_num_uav; i++) 
             {
+                swarm_command[i].source = "terminal_control";
                 swarm_command[i].Mode = prometheus_msgs::SwarmCommand::Hold;
                 command_pub[i].publish(swarm_command[i]); //【发布】阵型
             }
@@ -207,6 +208,7 @@ int main(int argc, char **argv){
         else if(start_flag == 3){
             for(int i = 1; i <= swarm_num_uav; i++) 
             {
+                swarm_command[i].source = "terminal_control";
                 swarm_command[i].Mode = prometheus_msgs::SwarmCommand::Land;
                 command_pub[i].publish(swarm_command[i]); //【发布】阵型
             }
@@ -215,8 +217,26 @@ int main(int argc, char **argv){
         {
             for(int i = 1; i <= swarm_num_uav; i++) 
             {
+                swarm_command[i].source = "terminal_control";
                 swarm_command[i].Mode = prometheus_msgs::SwarmCommand::Disarm;
                 command_pub[i].publish(swarm_command[i]); //【发布】阵型
+            }
+        }
+        else if (start_flag == 9)
+        {
+            for(int i = 1; i <= swarm_num_uav; i++) 
+            {
+                swarm_command[i].header.stamp = ros::Time::now();
+                swarm_command[i].header.frame_id = "world";
+                swarm_command[i].source = "traj_start";
+                swarm_command[i].Mode = prometheus_msgs::SwarmCommand::Move;
+                swarm_command[i].Move_mode = prometheus_msgs::SwarmCommand::XYZ_VEL;
+                swarm_command[i].velocity_ref = {0.0, 0.0, 0.0};
+                swarm_command[i].position_ref = {0.0, 0.0, 0.0};
+                swarm_command[i].acceleration_ref = {0.0, 0.0, 0.0};
+                swarm_command[i].yaw_ref = 0.0;
+                swarm_command[i].yaw_rate_ref = 0.0;
+                command_pub[i].publish(swarm_command[i]);
             }
         }
         else

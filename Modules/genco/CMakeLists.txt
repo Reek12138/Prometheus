@@ -26,6 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(NLopt REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -132,7 +133,9 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${NLopt_INCLUDE_DIRS}
   ../common/include
+  ./include/genco
 
 )
 
@@ -224,4 +227,9 @@ include_directories(
 add_executable(start_formation src/start_formation.cpp)
 add_dependencies(start_formation genco_gencpp)
 target_link_libraries(start_formation ${catkin_LIBRARIES})
+
+add_executable(genco_node genco_node/main.cpp genco_node/genco_node.cpp)
+add_dependencies(genco_node genco_gencpp)
+target_link_libraries(genco_node ${catkin_LIBRARIES} ${NLopt_LIBRARIES})
+
 
