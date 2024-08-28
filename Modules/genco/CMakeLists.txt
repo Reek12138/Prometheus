@@ -28,6 +28,10 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(NLopt REQUIRED)
 
+set(NLopt_INCLUDE_DIRS /usr/local/include)
+set(NLopt_LIBRARIES /usr/local/lib/x86_64-linux-gnu/libnlopt.so)
+
+
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -133,6 +137,7 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
   ${NLopt_INCLUDE_DIRS}
   ../common/include
   ./include/genco
@@ -230,6 +235,6 @@ target_link_libraries(start_formation ${catkin_LIBRARIES})
 
 add_executable(genco_node genco_node/main.cpp genco_node/genco_node.cpp)
 add_dependencies(genco_node genco_gencpp)
-target_link_libraries(genco_node ${catkin_LIBRARIES} ${NLopt_LIBRARIES})
+target_link_libraries(genco_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${NLopt_LIBRARIES})
 
 

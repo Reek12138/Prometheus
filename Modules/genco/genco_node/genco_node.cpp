@@ -3,20 +3,22 @@
 #include <cmath>
 #include <tuple>
 
-// 计算无人机A在以B为z轴且静止的坐标系下的相对速度,返回无人机B的坐标，无人机a的速度，安全斜率
-std::tuple<Eigen::Vector3f, Eigen::Vector3f, float> RelativeVelocity2NewFrame(const Eigen::Vector3f& positionA, const Eigen::Vector3f& velocityA, const Eigen::Vector3f& positionB, const Eigen::Vector3f& velocityB, const float& safe_therahold ) {
+// 计算无人机A在以B为z轴且静止的坐标系下的相对速度,返回无人机B的坐标，无人机a的总速度，安全斜率
+std::tuple<Eigen::Vector3f, Eigen::Vector3f, float, Eigen::Matrix3f> RelativeVelocity2NewFrame(const Eigen::Vector3f& positionA, const Eigen::Vector3f& velocityA, const Eigen::Vector3f& positionB, const Eigen::Vector3f& velocityB, const float& safe_therahold ) {
     // 计算相对位置和速度
     Eigen::Vector3f relativePosition = positionB - positionA;
     Eigen::Vector3f relativeVelocity = velocityA - velocityB;
 
-    // 定义新坐标系的 z 轴方向
-    Eigen::Vector3f zAxisNewFrame = relativePosition.normalized();
+    // // 定义新坐标系的 z 轴方向
+    // Eigen::Vector3f zAxisNewFrame = relativePosition.normalized();
 
-    // 原始坐标系的 z 轴方向
-    Eigen::Vector3f zAxisOriginal(0, 0, 1);
+    // // 原始坐标系的 z 轴方向
+    // Eigen::Vector3f zAxisOriginal(0, 0, 1);
 
     // 计算旋转矩阵
-    Eigen::Matrix3f rotationMatrix = computeRotationMatrix(zAxisOriginal, zAxisNewFrame);
+    float alpha_ij = std::atan2(positionB[1] - positionA[1], positionB[0] - positionA[0]);
+    float beta_ij = std::atan2(positionB[2] - positionA[2], std::sqrt(std::pow(positionB[0] - positionA[0], 2) + std::pow(positionB[1]- positionA[1], 2)));
+    Eigen::Matrix3f rotationMatrix = computeRotationMatrix(alpha_ij, beta_ij);
 
     // 旋转相对速度到新坐标系
     Eigen::Vector3f vel = rotationMatrix * relativeVelocity;
@@ -26,86 +28,24 @@ std::tuple<Eigen::Vector3f, Eigen::Vector3f, float> RelativeVelocity2NewFrame(co
     float b_ = std::sqrt(c_*c_ - safe_therahold*safe_therahold);
     float slope = b_/safe_therahold;
 
-    return std::make_tuple(pos, vel, slope);
+    return std::make_tuple(pos, vel, slope, rotationMatrix);
     }
 
+Eigen::Matrix3f computeRotationMatrix(const float& alpha, const float& beta) {
+    Eigen::Matrix3f R_ij ;
 
-// 计算旋转矩阵，从一个向量到另一个向量
-// R=I+sin(θ)⋅K+(1−cos(θ))⋅K*2
-// Eigen::Matrix3f computeRotationMatrix(const Eigen::Vector3f& from, const Eigen::Vector3f& to) {
-//     Eigen::Vector3f v = from.cross(to);
-//     float s = v.norm();
-//     float c = from.dot(to);
+    R_ij <<  sin(alpha),  sin(beta) * cos(alpha),  cos(beta) * cos(alpha),
+        -cos(alpha),  sin(beta) * sin(alpha),  cos(beta) * sin(alpha),
+        0,           -cos(beta),              sin(beta);
 
-//     Eigen::Matrix3f vx;
-//     vx << 0, -v.z(), v.y(),
-//           v.z(), 0, -v.x(),
-//           -v.y(), v.x(), 0;
-
-//     Eigen::Matrix3f I = Eigen::Matrix3f::Identity();
-
-//     Eigen::Matrix3f rotationMatrix;
-//     if (s == 0) {
-//         // from 和 to 是平行的或反平行的
-//         if (c > 0) {
-//             // from 和 to 是平行的
-//             rotationMatrix = I;
-//         } else {
-//             // from 和 to 是反平行的
-//             Eigen::Vector3f perp;
-//             if (std::abs(from.x()) <= std::abs(from.y()) && std::abs(from.x()) <= std::abs(from.z())) {
-//                 perp = Eigen::Vector3f(0, -from.z(), from.y());
-//             } else if (std::abs(from.y()) <= std::abs(from.x()) && std::abs(from.y()) <= std::abs(from.z())) {
-//                 perp = Eigen::Vector3f(-from.z(), 0, from.x());
-//             } else {
-//                 perp = Eigen::Vector3f(-from.y(), from.x(), 0);
-//             }
-//             perp.normalize();
-//             rotationMatrix = 2 * perp * perp.transpose() - I;
-//         }
-//     } else {
-//         // 使用罗德里格斯旋转公式
-//         rotationMatrix = I + vx + vx * vx * ((1 - c) / (s * s));
-//     }
-
-//     return rotationMatrix;
-// }
-Eigen::Matrix3f computeRotationMatrix(const Eigen::Vector3f& zAxisOriginal, const Eigen::Vector3f& zAxisNew) {
-    // 计算旋转轴 (cross product)
-    Eigen::Vector3f rotationAxis = zAxisOriginal.cross(zAxisNew).normalized();
-    
-    // 计算旋转角度 (dot product)
-    float angle = std::acos(zAxisOriginal.dot(zAxisNew) / (zAxisOriginal.norm() * zAxisNew.norm()));
-
-    // 特殊情况处理：如果旋转轴的范数为0（即两个向量平行或反平行）
-    if (rotationAxis.norm() == 0) {
-        if (zAxisOriginal.dot(zAxisNew) > 0) {
-            return Eigen::Matrix3f::Identity(); // 平行，返回单位矩阵
-        } else {
-            // 反平行，选择一个垂直于z轴的任意轴进行180度旋转
-            rotationAxis = zAxisOriginal.unitOrthogonal();
-            angle = M_PI;
-        }
-    }
-
-    // 计算旋转矩阵 (Rodrigues' rotation formula)
-    Eigen::Matrix3f rotationMatrix;
-    Eigen::Matrix3f K;
-    K << 0, -rotationAxis.z(), rotationAxis.y(),
-         rotationAxis.z(), 0, -rotationAxis.x(),
-         -rotationAxis.y(), rotationAxis.x(), 0;
-
-    rotationMatrix = Eigen::Matrix3f::Identity() + std::sin(angle) * K + (1 - std::cos(angle)) * K * K;
-
-    return rotationMatrix;
+    return R_ij.transpose();
 }
-
-
 
 
 // 生成轨迹
 std::vector<TrajectoryPoint> generateTrajectory(const Eigen::Vector3f& start, const Eigen::Vector3f& end, float total_time, const std::vector<float>& time_intervals) {
     Eigen::Vector3f velocity = (end - start) / total_time;
+    float V = velocity.norm();
     Eigen::Vector3f acceleration(0.0f, 0.0f, 0.0f); // 匀速运动，加速度为零
     std::vector<TrajectoryPoint> trajectory;
 
@@ -144,3 +84,45 @@ float calculateSlope(const Eigen::Vector3f& velocity) {
     return slope;
 }
 
+// 定义一个函数来计算偏航角(ψ)和俯仰角(θ)
+std::tuple<double, double> Velocity2Angles(const Eigen::Vector3f& V) {
+    double vx = V.x();
+    double vy = V.y();
+    double vz = V.z();
+
+    // 计算偏航角 ψ (arctan2(vy, vx))
+    double psi = std::atan2(vy, vx);
+    
+    // 计算俯仰角 θ (arctan2(vz, sqrt(vx^2 + vy^2)))
+    double theta = std::atan2(vz, std::sqrt(vx * vx + vy * vy));
+    
+    // 返回计算得到的角度
+    return std::make_tuple(psi, theta);
+}
+
+Eigen::Vector3f Angles2Velocity(const double& psi, const double& theta, const double& V){
+    Eigen::Vector3f v;
+    v[0] = V * cos(psi) * cos(theta);
+    v[1] = V * sin(psi) * cos(theta);
+    v[2] = V * sin(theta);
+
+    return v;
+}
+
+
+// 定义一个函数来计算垂足的交点坐标，并返回 Eigen::Vector2f
+Eigen::Vector2f calculatePerpendicularIntersection(float x, float y, float k) {
+    // 计算垂线斜率 k_perp = -1/k
+    float k_perp = -1.0f / k;
+    
+    // 使用直线方程 y = kx 和垂线方程 y = k_perp(x - x0) + y0
+    // 设直线 y = kx，垂线 y - y0 = k_perp(x - x0)
+    // 交点的 x 坐标
+    float x_intersect = (k * x + y) / (k + k_perp);
+    
+    // 交点的 y 坐标
+    float y_intersect = k * x_intersect;
+    
+    // 返回交点坐标作为 Eigen::Vector2f
+    return Eigen::Vector2f(x_intersect, y_intersect);
+}
