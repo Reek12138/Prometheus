@@ -32,7 +32,9 @@ bool start_flag, traj_flag;//开始标志
 int self_id;
 std::vector<TrajectoryPoint> trajectory;
 
+bool collision_flag[MAX_NUM+1];//切入genco标志位
 bool genco_flag[MAX_NUM+1];//切入genco标志位
+bool self_genco_flag;
 
 int collision_num[MAX_NUM+1];//碰撞判断计数
 
@@ -70,6 +72,7 @@ int main(int argc, char **argv){
     Drone_state_.resize(swarm_num_uav);
     drone_position_.resize(swarm_num_uav, Eigen::Vector3f::Zero());
     drone_vel_.resize(swarm_num_uav, Eigen::Vector3f::Zero());
+    std::fill(collision_flag, collision_flag + MAX_NUM+1, false);
     std::fill(genco_flag, genco_flag + MAX_NUM+1, false);
     std::fill(collision_num, collision_num + MAX_NUM+1, 0);
     std::fill(non_collision_num, non_collision_num + MAX_NUM+1, 0);
@@ -101,7 +104,7 @@ int main(int argc, char **argv){
 
     // 定义时间间隔
     std::vector<float> time_intervals = {0.0f, 2.5f, 5.0f, 7.5f, 10.0f, 12.5f, 15.0f, 17.5f, 20.0f};
-    float total_time = 20.0f;
+    float total_time = 80.0f;
 
     // 定义无人机的起始和结束位置
     // std::vector<Eigen::Vector3f> start_point = {
@@ -125,7 +128,9 @@ int main(int argc, char **argv){
 
     printf_param();
 
-    nlopt::opt opt(nlopt::GN_CRS2_LM, 3);
+    
+
+    Data data(swarm_num_uav);
 
 
     //算法主要逻辑
@@ -135,39 +140,136 @@ int main(int argc, char **argv){
         if(Drone_command_.source == "traj_start"){
             start_flag = true;
             traj_flag = true;
-
-            swarm_command.header.stamp = ros::Time::now();
-            swarm_command.header.frame_id = "world";
-            swarm_command.source = "traj_control";
-            swarm_command.Mode = prometheus_msgs::SwarmCommand::Move;
-            swarm_command.Move_mode = prometheus_msgs::SwarmCommand::XYZ_VEL;
-            swarm_command.velocity_ref[0] = trajectory[0].velocity[0];
-            swarm_command.velocity_ref[1] = trajectory[0].velocity[1];
-            swarm_command.velocity_ref[2] = trajectory[0].velocity[2];
-            swarm_command.position_ref = {0.0, 0.0, 0.0};
-            swarm_command.acceleration_ref = {0.0, 0.0, 0.0};
-            swarm_command.yaw_ref = 0.0;
-            swarm_command.yaw_rate_ref = 0.0;
-            command_pub.publish(swarm_command);
+            self_genco_flag = false;
         }else{
             // start_flag = false;
             // traj_flag = false;
         }
+
+        if(start_flag == true){
+            if(traj_flag == true && self_genco_flag == false){
+                swarm_command.header.stamp = ros::Time::now();
+                swarm_command.header.frame_id = "world";
+                swarm_command.source = "traj_control";
+                swarm_command.Mode = prometheus_msgs::SwarmCommand::Move;
+                swarm_command.Move_mode = prometheus_msgs::SwarmCommand::XYZ_VEL;
+                swarm_command.velocity_ref[0] = trajectory[0].velocity[0];
+                swarm_command.velocity_ref[1] = trajectory[0].velocity[1];
+                swarm_command.velocity_ref[2] = trajectory[0].velocity[2];
+                swarm_command.position_ref = {0.0, 0.0, 0.0};
+                swarm_command.acceleration_ref = {0.0, 0.0, 0.0};
+                swarm_command.yaw_ref = 0.0;
+                swarm_command.yaw_rate_ref = 0.0;
+                command_pub.publish(swarm_command);
+                }
+            else if(traj_flag == false && self_genco_flag == true){
+                nlopt::opt opt(nlopt::LD_MMA, 2);
+
+                // 设置目标函数
+                opt.set_min_objective(objective_function, &data);
+
+                // 设置约束
+                std::vector<double> tol(swarm_num_uav + 4, 1e-8);  // 容差向量
+                opt.add_inequality_mconstraint(constraint_function, &data, tol);
+
+                // 设置变量的上下界
+                std::vector<double> lb = {data.psi_min, data.theta_min};
+                std::vector<double> ub = {data.psi_max, data.theta_max};
+                opt.set_lower_bounds(lb);
+                opt.set_upper_bounds(ub);
+
+                // 设置停止条件
+                opt.set_xtol_rel(1e-4);
+
+                // 初始猜测值
+                std::vector<double> x = {0.0, 0.0}; // 初始值
+
+                // 优化
+                double minf;
+                try {
+                    nlopt::result result = opt.optimize(x, minf);
+                    std::cout << "Found minimum at f(" << x[0] << ", " << x[1] << ") = " << minf << std::endl;
+                } catch (std::exception &e) {
+                    std::cout << "nlopt failed: " << e.what() << std::endl;
+                }
+
+                float genco_psi = x[0];
+                float genco_theta = x[1];
+
+                Eigen::Vector3f genco_V = Angles2Velocity(genco_psi, genco_theta, trajectory[0].velocity.norm());
+
+                swarm_command.header.stamp = ros::Time::now();
+                swarm_command.header.frame_id = "world";
+                swarm_command.source = "genco_control";
+                swarm_command.Mode = prometheus_msgs::SwarmCommand::Move;
+                swarm_command.Move_mode = prometheus_msgs::SwarmCommand::XYZ_VEL;
+                swarm_command.velocity_ref[0] = genco_V.x();
+                swarm_command.velocity_ref[1] = genco_V.y();
+                swarm_command.velocity_ref[2] = genco_V.z();
+                swarm_command.position_ref = {0.0, 0.0, 0.0};
+                swarm_command.acceleration_ref = {0.0, 0.0, 0.0};
+                swarm_command.yaw_ref = 0.0;
+                swarm_command.yaw_rate_ref = 0.0;
+                command_pub.publish(swarm_command);
+
+
+            }
+            
+        }
+        
         
         for(int i=0; i<swarm_num_uav; i++){
-            if(start_flag == true && genco_flag[i] == true){
+            if(start_flag == true && collision_flag[i] == true){
+
                 Eigen::Vector3f Vel_, Pos_;
                 float therahold_slope;
-                std::tie(Pos_, Vel_, therahold_slope) = RelativeVelocity2NewFrame(drone_position_[self_id-1], drone_vel_[self_id-1], drone_position_[i], drone_vel_[i], safe_therahold);
+                Eigen::Matrix3f R;
+                std::tie(Pos_, Vel_, therahold_slope, R) = RelativeVelocity2NewFrame(drone_position_[self_id-1], drone_vel_[self_id-1], drone_position_[i], drone_vel_[i], safe_therahold);
 
                 float slope = calculateSlope(Vel_);
+
                 cout << "uav"<<to_string(self_id)<<"可能与uav" << std::to_string(i+1) << "发生冲突" << endl;
                 cout << "uav" << to_string(i+1) << " : x= " << Pos_[0]<<" m, y= "<<Pos_[1]<<" m, z= "<<Pos_[2]<<" m"<<endl;
                 
+                // 在碰撞锥内有碰撞风险
                 if(slope > therahold_slope){
 
+                    self_genco_flag = true;
+                    genco_flag[i] = true;
+                    traj_flag = false;
+                    // 变换后坐标系内本方无人机i和对方无人机j的速度，角度
+                    Eigen::Vector3f v_i_ = R * drone_vel_[self_id-1];
+                    Eigen::Vector3f v_j_ = R * drone_vel_[i];
+
+                    // "偏航角 (ψ): " << psi   "俯仰角 (θ): " << theta
+                    auto[psi_i_, theta_i_] = Velocity2Angles(v_i_);
+                    auto[psi_j_, theta_j_] = Velocity2Angles(v_j_);
+
+                    float X_ = cos(psi_j_)*cos(theta_j_) - sin(theta_j_ )/ therahold_slope;
+                    float Y_ = cos(psi_i_)*cos(theta_i_) - sin(theta_i_ )/ therahold_slope;
+                    float K_ = v_j_.norm() / v_i_.norm();
+
+                    Eigen::Vector2f target_xy_ = calculatePerpendicularIntersection(X_, Y_, K_);
+
+                    Eigen::Vector3f target_dis_now = end_point - drone_position_[self_id-1];
+                    auto[target_psi, target_theta] = Velocity2Angles(target_dis_now);
+
+                    data.psi_g = target_psi;
+                    data.theta_g = target_theta;
+                    data.psi_min = -2.0;
+                    data.psi_max = 2.0;
+                    data.theta_min = -2.0;
+                    data.theta_max = 2.0;
+                    data.therahold_slope = therahold_slope;
+                    data.target_xy_[i] = target_xy_;
+                    data.V = v_i_.norm();
+                    data.R[i] = R;
+
+                   
 
                 }
+            }else{
+                genco_flag[i] = false;
             }
         }
 
@@ -202,17 +304,17 @@ void drone_state_cb(const prometheus_msgs::DroneState::ConstPtr& msg, int id){
         if(distance <= collision_therahold){
             collision_num[id]++;
             if(collision_num[id] >= 5){
-                genco_flag[id] = true;
+                collision_flag[id] = true;
             }
         }
         else{
             non_collision_num[id]++;
             if(non_collision_num[id] >= 5){
-                genco_flag[id] = false;
+                collision_flag[id] = false;
             }
         }
     }else{
-        genco_flag[id] = false;
+        collision_flag[id] = false;
     }
 
 }
@@ -230,5 +332,67 @@ void printf_param()
     printTrajectory(trajectory, "UAV" + std::to_string(self_id));
 
     
+}
+
+// 目标函数
+double objective_function(const std::vector<double> &x, std::vector<double> &grad, void *data) {
+    Data* d = static_cast<Data*>(data);
+    double psi_i = x[0];
+    double theta_i = x[1];
+
+    // 计算目标函数值
+    double obj_value = std::pow(psi_i - d->psi_g, 2) + std::pow(theta_i - d->theta_g, 2);
+
+    // 如果需要计算梯度
+    if (!grad.empty()) {
+        grad[0] = 2 * (psi_i - d->psi_g);
+        grad[1] = 2 * (theta_i - d->theta_g);
+    }
+
+    return obj_value;
+}
+
+
+
+// 约束函数
+void constraint_function(unsigned m, double *result, unsigned n, const double *x, double *grad, void *data) {
+    Data* d = static_cast<Data*>(data);
+    double psi_i = x[0];
+    double theta_i = x[1];
+
+    // 约束1: 检查 psi_i 和 theta_i 是否在 [psi_min, psi_max] 和 [theta_min, theta_max] 范围内
+    result[0] = psi_i - d->psi_min;  // psi_i >= psi_min
+    result[1] = d->psi_max - psi_i;  // psi_i <= psi_max
+    result[2] = theta_i - d->theta_min;  // theta_i >= theta_min
+    result[3] = d->theta_max - theta_i;  // theta_i <= theta_max
+
+
+    Eigen::Vector3f v = Angles2Velocity(psi_i, theta_i, d->V);
+
+    for(int i=0; i<swarm_num_uav; i++){
+        if(i != self_id ){
+            if(genco_flag[i] == true){
+                Eigen::Vector3f v_ = d->R[i] * v;
+                auto [psi_i_, theta_i_] = Velocity2Angles(v_);
+
+                result[4+i] = cos(psi_i_) * cos(theta_i_) - sin(theta_i_)/d->therahold_slope - d->target_xy_[i][1];
+            }
+            else{
+                result[4+i] = 0;
+            }
+        }
+    }
+    // Eigen::Vector3f v_ = d->R * v;
+    // auto [psi_i_, theta_i_] = Velocity2Angles(v_);
+
+    // result[4] = cos(psi_i_) * cos(theta_i_) - sin(theta_i_)/d->therahold_slope - d->target_xy_[1];
+
+    // // 如果需要梯度信息，可以在这里计算并填充 grad 数组
+    // if (grad) {
+    //     // 对于每个约束，对 psi_i 和 theta_i 计算梯度
+    //     // 例如：
+    //     grad[0] = -std::sin(psi_i) * std::cos(theta_i); // 对 psi_i 的偏导数
+    //     grad[1] = -std::cos(psi_i) * std::sin(theta_i) - std::cos(theta_i) / d->therahold_slope; // 对 theta_i 的偏导数
+    // }
 }
 
