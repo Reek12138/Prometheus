@@ -227,7 +227,13 @@ void printf_swarm_state(int swarm_num, int uav_id, const prometheus_msgs::DroneS
                 cout << "Position [X Y Z] : " << SwarmCommand.position_ref[0] << " [ m ] "<< SwarmCommand.position_ref[1]<<" [ m ] "<< SwarmCommand.position_ref[2]<<" [ m ] "<<endl;
                 cout << "Velocity [X Y Z] : " << SwarmCommand.velocity_ref[0] << " [m/s] "<< SwarmCommand.velocity_ref[1]<<" [m/s] "<< SwarmCommand.velocity_ref[2]<<" [m/s] "<<endl;
                 cout << "Yaw : "  << SwarmCommand.yaw_ref* 180/M_PI << " [deg] " <<endl;
-            }else
+            }else if(SwarmCommand.Move_mode == prometheus_msgs::SwarmCommand::XYZ_VEL)
+            {
+                cout << "Command: [ Move in XYZ_VEL] " <<endl;
+                // cout << "Position [X Y Z] : " << SwarmCommand.velocity_ref[0] << " [m/s] "<< SwarmCommand.velocity_ref[1]<<" [m/s] "<< SwarmCommand.position_ref[2]<<" [ m ] "<<endl;
+                // cout << "Yaw : "  << SwarmCommand.yaw_ref* 180/M_PI << " [deg] " <<endl;
+            }
+            else
             {
                 cout << " wrong sub move mode. " <<endl;
             }
