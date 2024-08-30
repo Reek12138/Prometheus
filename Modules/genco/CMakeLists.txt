@@ -31,6 +31,9 @@ find_package(NLopt REQUIRED)
 set(NLopt_INCLUDE_DIRS /usr/local/include)
 set(NLopt_LIBRARIES /usr/local/lib/x86_64-linux-gnu/libnlopt.so)
 
+# 指定要链接的库目录
+link_directories(/usr/local/lib)
+
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -236,5 +239,9 @@ target_link_libraries(start_formation ${catkin_LIBRARIES})
 add_executable(genco_node genco_node/main.cpp genco_node/genco_node.cpp)
 add_dependencies(genco_node genco_gencpp)
 target_link_libraries(genco_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${NLopt_LIBRARIES})
+
+# add_executable(genco_node genco_node/main_.cpp genco_node/genco_node.cpp)
+# add_dependencies(genco_node genco_gencpp)
+# target_link_libraries(genco_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${NLopt_LIBRARIES} quadprog)
 
 
