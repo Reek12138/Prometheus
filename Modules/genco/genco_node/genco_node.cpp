@@ -118,7 +118,7 @@ Eigen::Vector2f calculatePerpendicularIntersection(float x, float y, float k) {
     // 使用直线方程 y = kx 和垂线方程 y = k_perp(x - x0) + y0
     // 设直线 y = kx，垂线 y - y0 = k_perp(x - x0)
     // 交点的 x 坐标
-    float x_intersect = (k * x + y) / (k + k_perp);
+    float x_intersect = (y - k_perp * x) / (k - k_perp);
     
     // 交点的 y 坐标
     float y_intersect = k * x_intersect;

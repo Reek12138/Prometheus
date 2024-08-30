@@ -172,19 +172,13 @@ int main(int argc, char **argv){
                 // nlopt::opt opt(nlopt::LD_SLSQP, 2);
                 // nlopt::opt opt(nlopt::GN_ISRES, 2);
                  // 根据self_genco_flag来选择算法
-                nlopt::opt opt;
-                if (self_genco_flag) {
-                    opt = nlopt::opt(nlopt::GN_ISRES, 2);
-                    
-                } else {
-                    opt = nlopt::opt(nlopt::LD_SLSQP, 2); // 选择局部优化算法
-                }
+                nlopt::opt opt(self_genco_flag ? nlopt::GN_MLSL : nlopt::LD_SLSQP, 2);
 
                 // 设置目标函数
                 opt.set_min_objective(objective_function, &data);
 
                 // 设置约束
-                std::vector<double> tol(swarm_num_uav + 4 - 1, 1e-8);  // 容差向量
+                std::vector<double> tol(swarm_num_uav + 4, 1e-8);  // 容差向量
                 opt.add_inequality_mconstraint(constraint_function, &data, tol);
 
                 // 设置变量的上下界
@@ -214,6 +208,8 @@ int main(int argc, char **argv){
                 std::vector<double> x;
                 auto [psi_now, theta_now] = Velocity2Angles(drone_vel_[self_id-1]);
              
+                // x = {target_psi + dis(gen), target_theta + dis(gen)};#TODO
+                // x = {psi_now, theta_now}; // 初始值
                 x = (self_genco_flag ? std::vector<double> {psi_now, theta_now} : std::vector<double> {target_psi + dis(gen), target_theta + dis(gen)});
 
                 
@@ -378,13 +374,6 @@ int main(int argc, char **argv){
                     }else{
                     genco_flag[i] = false;
                     }
-                    // 检查是否所有元素都是 false
-                    for (size_t i = 0; i < sizeof(genco_flag)/sizeof(genco_flag[0]); ++i) {
-                        if (!genco_flag[i]) {
-                            self_genco_flag = false;
-                            break;
-                        }
-                    }
             }
         }
 
@@ -473,10 +462,10 @@ double objective_function2(const std::vector<double> &x, std::vector<double> &gr
     Data* d = static_cast<Data*>(data);
     double psi_i = x[0];
     double theta_i = x[1];
-    // if(!grad.empty()){
-    //     grad[0] = 0;
-    //     grad[1] = 0;
-    // }
+    if(!grad.empty()){
+        grad[0] = 0;
+        grad[1] = 0;
+    }
 
     // 计算目标函数值
     double obj_value;
@@ -490,71 +479,20 @@ double objective_function2(const std::vector<double> &x, std::vector<double> &gr
 
                 obj_value += std::pow((cos(psi_i_) * cos(theta_i_) - sin(theta_i_) / d->therahold_slope) - (d->target_xy_[i][1]),2);
 
-                // if(!grad.empty()){
-                //     // 计算约束函数的梯度
-                //     double dg_dpsi_i_ = -std::sin(psi_i_) * std::cos(theta_i_);
-                //     double dg_dtheta_i_ = -std::cos(psi_i_) * std::sin(theta_i_) - std::cos(theta_i_) / d->therahold_slope;
-                //     grad[0] += dg_dpsi_i_ * d->R[i](0, 0) + dg_dtheta_i_ * d->R[i](1, 0);
-                //     grad[1] += dg_dpsi_i_ * d->R[i](0, 1) + dg_dtheta_i_ * d->R[i](1, 1);
-                // }
+                if(!grad.empty()){
+                    // 计算约束函数的梯度
+                    double dg_dpsi_i_ = -std::sin(psi_i_) * std::cos(theta_i_);
+                    double dg_dtheta_i_ = -std::cos(psi_i_) * std::sin(theta_i_) - std::cos(theta_i_) / d->therahold_slope;
+                    grad[0] += dg_dpsi_i_ * d->R[i](0, 0) + dg_dtheta_i_ * d->R[i](1, 0);
+                    grad[1] += dg_dpsi_i_ * d->R[i](0, 1) + dg_dtheta_i_ * d->R[i](1, 1);
+                }
             }
         }
-        return obj_value;
 }
 
 
 
 // 约束函数
-// void constraint_function(unsigned m, double *result, unsigned n, const double *x, double *grad, void *data) {
-//     Data* d = static_cast<Data*>(data);
-//     double psi_i = x[0];
-//     double theta_i = x[1];
-
-//     // 约束1: 检查 psi_i 和 theta_i 是否在 [psi_min, psi_max] 和 [theta_min, theta_max] 范围内
-//     result[0] = psi_i - d->psi_min;  // psi_i >= psi_min
-//     result[1] = d->psi_max - psi_i;  // psi_i <= psi_max
-//     result[2] = theta_i - d->theta_min;  // theta_i >= theta_min
-//     result[3] = d->theta_max - theta_i;  // theta_i <= theta_max
-
-//     // 初始化梯度数组
-//     if (grad) {
-//         std::fill(grad, grad + n, 0.0);
-//         grad[0] = 1.0;  // 对应 result[0] 的 psi_i 偏导数
-//         grad[1] = -1.0; // 对应 result[1] 的 psi_i 偏导数
-//         grad[2] = 1.0;  // 对应 result[2] 的 theta_i 偏导数
-//         grad[3] = -1.0; // 对应 result[3] 的 theta_i 偏导数
-//     }
-
-    
-//          Eigen::Vector3f v = Angles2Velocity(psi_i, theta_i, d->V);
-
-//         for (int i = 0; i < swarm_num_uav; i++) {
-//             if (i != (self_id - 1) && genco_flag[i] == true) {
-
-//                 Eigen::Vector3f v_ = d->R[i] * v;
-//                 auto [psi_i_, theta_i_] = Velocity2Angles(v_);
-
-//                 result[4 + i] = cos(psi_i_) * cos(theta_i_) - sin(theta_i_) / d->therahold_slope - d->target_xy_[i][1];
-
-//                 if (grad) {
-//                     // 计算约束函数的梯度
-//                     double dg_dpsi_i_ = -std::sin(psi_i_) * std::cos(theta_i_);
-//                     double dg_dtheta_i_ = -std::cos(psi_i_) * std::sin(theta_i_) - std::cos(theta_i_) / d->therahold_slope;
-
-//                     // 填充对 psi_i 和 theta_i 的梯度
-//                     grad[4 + i] += dg_dpsi_i_ * d->R[i](0, 0) + dg_dtheta_i_ * d->R[i](1, 0);
-//                     grad[4 + i + swarm_num_uav] += dg_dpsi_i_ * d->R[i](0, 1) + dg_dtheta_i_ * d->R[i](1, 1);
-//                 }
-
-//                 // std::cout << "增加了第 " << i << " 个genco约束 " << std::endl;
-//             } else {
-//                 result[4 + i] = 0;
-//             }
-//         }
-    
-   
-// }
-
 void constraint_function(unsigned m, double *result, unsigned n, const double *x, double *grad, void *data) {
     Data* d = static_cast<Data*>(data);
     double psi_i = x[0];
@@ -566,40 +504,44 @@ void constraint_function(unsigned m, double *result, unsigned n, const double *x
     result[2] = theta_i - d->theta_min;  // theta_i >= theta_min
     result[3] = d->theta_max - theta_i;  // theta_i <= theta_max
 
-    // if (grad) {
-    //     // 初始化梯度数组
-    //     std::fill(grad, grad + n * m, 0.0);  // 清空整个梯度数组
-
-    //     grad[0 * n + 0] = 1.0;  // 对应 result[0] 的 psi_i 偏导数
-    //     grad[1 * n + 0] = -1.0; // 对应 result[1] 的 psi_i 偏导数
-    //     grad[2 * n + 1] = 1.0;  // 对应 result[2] 的 theta_i 偏导数
-    //     grad[3 * n + 1] = -1.0; // 对应 result[3] 的 theta_i 偏导数
-    // }
-
-    // 处理 swarm_num_uav 的额外约束
-    Eigen::Vector3f v = Angles2Velocity(psi_i, theta_i, d->V);
-
-    for (int i = 0; i < swarm_num_uav; i++) {
-        if (i != (self_id - 1) && genco_flag[i] == true) {
-            Eigen::Vector3f v_ = d->R[i] * v;
-            auto [psi_i_, theta_i_] = Velocity2Angles(v_);
-
-            result[4 + i] = cos(psi_i_) * cos(theta_i_) - sin(theta_i_) / d->therahold_slope - d->target_xy_[i][1];
-
-            // if (grad) {
-            //     double dg_dpsi_i_ = -std::sin(psi_i_) * std::cos(theta_i_);
-            //     double dg_dtheta_i_ = -std::cos(psi_i_) * std::sin(theta_i_) - std::cos(theta_i_) / d->therahold_slope;
-
-            //     // 填充对 psi_i 和 theta_i 的梯度
-            //     grad[(4 + i) * n + 0] += dg_dpsi_i_ * d->R[i](0, 0) + dg_dtheta_i_ * d->R[i](1, 0);
-            //     grad[(4 + i) * n + 1] += dg_dpsi_i_ * d->R[i](0, 1) + dg_dtheta_i_ * d->R[i](1, 1);
-            // }
-        } else {
-            result[4 + i] = 0.0;  // 对于无效约束，确保返回 0
-        }
+    // 初始化梯度数组
+    if (grad) {
+        std::fill(grad, grad + n, 0.0);
+        grad[0] = 1.0;  // 对应 result[0] 的 psi_i 偏导数
+        grad[1] = -1.0; // 对应 result[1] 的 psi_i 偏导数
+        grad[2] = 1.0;  // 对应 result[2] 的 theta_i 偏导数
+        grad[3] = -1.0; // 对应 result[3] 的 theta_i 偏导数
     }
-}
 
+    
+         Eigen::Vector3f v = Angles2Velocity(psi_i, theta_i, d->V);
+
+        for (int i = 0; i < swarm_num_uav; i++) {
+            if (i != (self_id - 1) && genco_flag[i] == true) {
+
+                Eigen::Vector3f v_ = d->R[i] * v;
+                auto [psi_i_, theta_i_] = Velocity2Angles(v_);
+
+                result[4 + i] = cos(psi_i_) * cos(theta_i_) - sin(theta_i_) / d->therahold_slope - d->target_xy_[i][1];
+
+                if (grad) {
+                    // 计算约束函数的梯度
+                    double dg_dpsi_i_ = -std::sin(psi_i_) * std::cos(theta_i_);
+                    double dg_dtheta_i_ = -std::cos(psi_i_) * std::sin(theta_i_) - std::cos(theta_i_) / d->therahold_slope;
+
+                    // 填充对 psi_i 和 theta_i 的梯度
+                    grad[4 + i] += dg_dpsi_i_ * d->R[i](0, 0) + dg_dtheta_i_ * d->R[i](1, 0);
+                    grad[4 + i + swarm_num_uav] += dg_dpsi_i_ * d->R[i](0, 1) + dg_dtheta_i_ * d->R[i](1, 1);
+                }
+
+                // std::cout << "增加了第 " << i << " 个genco约束 " << std::endl;
+            } else {
+                result[4 + i] = 0;
+            }
+        }
+    
+   
+}
 
 
 // 约束函数
@@ -616,13 +558,11 @@ void constraint_function2(unsigned m, double *result, unsigned n, const double *
 
     // 初始化梯度数组
     if (grad) {
-        // 初始化梯度数组
-        std::fill(grad, grad + n * m, 0.0);  // 清空整个梯度数组
-
-        grad[0 * n + 0] = 1.0;  // 对应 result[0] 的 psi_i 偏导数
-        grad[1 * n + 0] = -1.0; // 对应 result[1] 的 psi_i 偏导数
-        grad[2 * n + 1] = 1.0;  // 对应 result[2] 的 theta_i 偏导数
-        grad[3 * n + 1] = -1.0; // 对应 result[3] 的 theta_i 偏导数
+        std::fill(grad, grad + n, 0.0);
+        grad[0] = 1.0;  // 对应 result[0] 的 psi_i 偏导数
+        grad[1] = -1.0; // 对应 result[1] 的 psi_i 偏导数
+        grad[2] = 1.0;  // 对应 result[2] 的 theta_i 偏导数
+        grad[3] = -1.0; // 对应 result[3] 的 theta_i 偏导数
     }
 
     

@@ -43,7 +43,8 @@ struct Data {
 
         Data(int num_uavs)
     : target_xy_(num_uavs, Eigen::Vector2f::Zero()),
-        R(num_uavs, Eigen::Matrix3f::Identity()) // 初始化为单位矩阵
+        R(num_uavs, Eigen::Matrix3f::Identity()), // 初始化为单位矩阵
+        therahold_slope(0)
 {}
 };
 
@@ -59,8 +60,9 @@ float calculateSlope(const Eigen::Vector3f& velocity);
 
 
 double objective_function(const std::vector<double> &x, std::vector<double> &grad, void *data) ;
-bool in_DRi(const double psi, const double theta) ;
+double objective_function2(const std::vector<double> &x, std::vector<double> &grad, void *data) ;
 void constraint_function(unsigned m, double *result, unsigned n, const double *x, double *grad, void *data) ;
+void constraint_function2(unsigned m, double *result, unsigned n, const double *x, double *grad, void *data) ;
 
 std::tuple<double, double> Velocity2Angles(const Eigen::Vector3f& V) ;
 Eigen::Vector2f calculatePerpendicularIntersection(float x, float y, float k) ;
