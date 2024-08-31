@@ -201,7 +201,7 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Alpha: 1
-      Buffer Length: 20
+      Buffer Length: 200
       Class: rviz/Path
       Color: 25; 255; 0
       Enabled: true
@@ -224,7 +224,7 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Alpha: 1
-      Buffer Length: 20
+      Buffer Length: 200
       Class: rviz/Path
       Color: 25; 255; 0
       Enabled: true
@@ -247,7 +247,7 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Alpha: 1
-      Buffer Length: 20
+      Buffer Length: 200
       Class: rviz/Path
       Color: 25; 255; 0
       Enabled: true
@@ -270,7 +270,7 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Alpha: 1
-      Buffer Length: 20
+      Buffer Length: 200
       Class: rviz/Path
       Color: 25; 255; 0
       Enabled: true
@@ -320,7 +320,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 140.25640869140625
+      Distance: 157.08717346191406
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -356,5 +356,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1080
-  X: 1920
-  Y: 527
+  X: 1980
+  Y: 584

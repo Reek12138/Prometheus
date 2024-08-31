@@ -3,8 +3,9 @@
 
 	<!-- genco相关参数 -->
 	<arg name="collision_therahold" default="40.0"/><!-- 碰撞判定距离 -->
-	<arg name="safe_therahold" default="5.0"/><!-- 飞机安全距离 -->
-	<arg name="total_time" default="20.0"/><!-- 飞行时间 -->
+	<arg name="safe_therahold" default="1.5"/><!-- 飞机安全距离 -->
+	<arg name="total_time" default="10.0"/><!-- 飞行时间 -->
+	<arg name="ros_t" default="0.2"/><!-- 间隔时间 -->
 
 
 	<!-- 无人机集群数量 -->
@@ -14,36 +15,36 @@
 	<arg name="uav3_id" default="3"/>
 	<arg name="uav4_id" default="4"/>
 	<!-- 无人机初始位置和终点位置 -->
-	<arg name="uav1_init_x" default="20.0"/>
-    <arg name="uav1_init_y" default="20.0"/>
-    <arg name="uav1_init_z" default="10.0"/>
+	<arg name="uav1_init_x" default="5.0"/>
+    <arg name="uav1_init_y" default="5.0"/>
+    <arg name="uav1_init_z" default="2.9"/>
     <!-- <arg name="uav1_init_z" default="20.0"/> -->
 
 	<arg name="uav1_end_x" default="-20.0"/>
     <arg name="uav1_end_y" default="-19.0"/>
     <arg name="uav1_end_z" default="39.0"/>
 
-    <arg name="uav2_init_x" default="20.0"/>
-    <arg name="uav2_init_y" default="-20.0"/>
-    <arg name="uav2_init_z" default="9.0"/>
+    <arg name="uav2_init_x" default="5.0"/>
+    <arg name="uav2_init_y" default="-5.0"/>
+    <arg name="uav2_init_z" default="3.2"/>
     <!-- <arg name="uav2_init_z" default="20.0"/> -->
 
 	<arg name="uav2_end_x" default="-19.0"/>
     <arg name="uav2_end_y" default="21.0"/>
     <arg name="uav2_end_z" default="38.5"/>
 
-    <arg name="uav3_init_x" default="-20.0"/>
-    <arg name="uav3_init_y" default="-20.0"/>
-    <arg name="uav3_init_z" default="40.0"/>
+    <arg name="uav3_init_x" default="-5.0"/>
+    <arg name="uav3_init_y" default="-5.0"/>
+    <arg name="uav3_init_z" default="2.8"/>
     <!-- <arg name="uav3_init_z" default="20.0"/> -->
 
 	<arg name="uav3_end_x" default="19.5"/>
     <arg name="uav3_end_y" default="20.5"/>
     <arg name="uav3_end_z" default="10.5"/>
 
-    <arg name="uav4_init_x" default="-20.0"/>
-    <arg name="uav4_init_y" default="20.0"/>
-    <arg name="uav4_init_z" default="40.0"/>
+    <arg name="uav4_init_x" default="-5.0"/>
+    <arg name="uav4_init_y" default="5.0"/>
+    <arg name="uav4_init_z" default="3.1"/>
     <!-- <arg name="uav4_init_z" default="20.0"/> -->
 
 	<arg name="uav4_end_x" default="21.0"/>
@@ -253,6 +254,9 @@
 
 		<param name="collision_therahold" value="$(arg collision_therahold)"/>
 		<param name="safe_therahold" value="$(arg safe_therahold)"/>
+
+		<param name="ros_t" value="$(arg ros_t)"/>
+		<param name="total_time" value="$(arg total_time)"/>
 	</node>
 
 	<node pkg="genco" type="genco_node" name="genco_node_2" output="screen" launch-prefix="gnome-terminal --tab --">
@@ -272,6 +276,9 @@
 
 		<param name="collision_therahold" value="$(arg collision_therahold)"/>
 		<param name="safe_therahold" value="$(arg safe_therahold)"/>
+
+		<param name="ros_t" value="$(arg ros_t)"/>
+		<param name="total_time" value="$(arg total_time)"/>
 
 	</node>
 		<param name="end_pos_x" value="$(arg uav4_init_x)"/>
@@ -294,6 +301,9 @@
 		<param name="collision_therahold" value="$(arg collision_therahold)"/>
 		<param name="safe_therahold" value="$(arg safe_therahold)"/>
 
+		<param name="ros_t" value="$(arg ros_t)"/>
+		<param name="total_time" value="$(arg total_time)"/>
+
 	</node>
 
 	<node pkg="genco" type="genco_node" name="genco_node_4" output="screen" launch-prefix="gnome-terminal --tab --">
@@ -313,6 +323,9 @@
 
 		<param name="collision_therahold" value="$(arg collision_therahold)"/>
 		<param name="safe_therahold" value="$(arg safe_therahold)"/>
+
+		<param name="ros_t" value="$(arg ros_t)"/>
+		<param name="total_time" value="$(arg total_time)"/>
 
 	</node>
 
