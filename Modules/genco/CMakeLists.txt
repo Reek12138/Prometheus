@@ -236,12 +236,12 @@ add_executable(start_formation src/start_formation.cpp)
 add_dependencies(start_formation genco_gencpp)
 target_link_libraries(start_formation ${catkin_LIBRARIES})
 
-add_executable(genco_node genco_node/main.cpp genco_node/genco_node.cpp)
-add_dependencies(genco_node genco_gencpp)
-target_link_libraries(genco_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${NLopt_LIBRARIES})
-
-# add_executable(genco_node genco_node/main_.cpp genco_node/genco_node.cpp)
+# add_executable(genco_node genco_node/main.cpp genco_node/genco_node.cpp)
 # add_dependencies(genco_node genco_gencpp)
-# target_link_libraries(genco_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${NLopt_LIBRARIES} quadprog)
+# target_link_libraries(genco_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${NLopt_LIBRARIES})
+
+add_executable(genco_node genco_node/main_.cpp genco_node/genco_node.cpp)
+add_dependencies(genco_node genco_gencpp)
+target_link_libraries(genco_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${NLopt_LIBRARIES} quadprog)
 
 
