@@ -3,6 +3,17 @@
 #include <Eigen/Dense>
 #include <tuple>
 
+std::tuple<double, double> Velocity2Angles(const Eigen::Vector3f& V) ;
+Eigen::Vector3f Angles2Velocity(const double& psi, const double& theta, const double& V);
+std::tuple<Eigen::Vector3f, Eigen::Vector3f, float, Eigen::Matrix3f> RelativeVelocity2NewFrame(const Eigen::Vector3f& positionA, const Eigen::Vector3f& velocityA, const Eigen::Vector3f& positionB, const Eigen::Vector3f& velocityB, const float& safe_therahold ) ;
+Eigen::Vector2f calculatePerpendicularIntersection(float x, float y, float k) ;
+Eigen::Matrix3f computeRotationMatrix(const float& alpha, const float& beta) ;
+float calculateSlope(const Eigen::Vector3f& velocity) ;
+
+
+
+
+
 
 std::tuple<double, double> Velocity2Angles(const Eigen::Vector3f& V) {
     double vx = V.x();
@@ -74,7 +85,8 @@ Eigen::Vector2f calculatePerpendicularIntersection(float x, float y, float k) {
     // 使用直线方程 y = kx 和垂线方程 y = k_perp(x - x0) + y0
     // 设直线 y = kx，垂线 y - y0 = k_perp(x - x0)
     // 交点的 x 坐标
-    float x_intersect = (k * x + y) / (k + k_perp);
+    // float x_intersect = (k_perp * x + y) / (k + k_perp);
+    float x_intersect = (y - k_perp * x) / (k - k_perp);
     
     // 交点的 y 坐标
     float y_intersect = k * x_intersect;
@@ -122,59 +134,67 @@ void constraint_function(unsigned m, double *result, unsigned n, const double *x
     double psi_i = x[0];
     double theta_i = x[1];
 
-    result[0] = psi_i - (-3.14);  // psi_i >= psi_min
+   result[0] = psi_i - (-3.14);  // psi_i >= psi_min
     result[1] = (3.14) - psi_i;  // psi_i <= psi_max
     result[2] = theta_i - (-1.57);  // theta_i >= theta_min
     result[3] = (1.57) - theta_i;  // theta_i <= theta_max
 
-        Eigen::Vector3f V_i = {-0.49, 0.49, 0.36};
-        Eigen::Vector3f P_i = {8.64, 7.90, 19.74};
-        Eigen::Vector3f V_j = {0.52, 0.45, -0.38};
-        Eigen::Vector3f P_j = {-7.77, -8.67, 30.65};
-        Eigen::Vector3f Vel_, Pos_;
-        float therahold_slope;
-        Eigen::Matrix3f R;
-        std::tie(Pos_, Vel_, therahold_slope, R) = RelativeVelocity2NewFrame(P_i , V_i, P_j, V_j, 5.0);
+    // 添加非线性约束
+    Eigen::Vector3f V_i = {-0.49, -0.49, 0.36};
+    Eigen::Vector3f P_i = {8.64, 7.90, 19.74};
+    Eigen::Vector3f V_j = {0.52, 0.45, -0.38};
+    Eigen::Vector3f P_j = {-7.77, -8.67, 30.65};
+    Eigen::Vector3f Vel_, Pos_;
+    float therahold_slope;
+    Eigen::Matrix3f R;
+    std::tie(Pos_, Vel_, therahold_slope, R) = RelativeVelocity2NewFrame(P_i , V_i, P_j, V_j, 5.0);
 
-        Eigen::Vector3f V_i_ = R * V_i;
-        Eigen::Vector3f V_j_ = R * V_j;
-        // "偏航角 (ψ): " << psi   "俯仰角 (θ): " << theta
-        auto[psi_i_, theta_i_] = Velocity2Angles(V_i_);
-        auto[psi_j_, theta_j_] = Velocity2Angles(V_j_);
-        float X_ = cos(psi_j_)*cos(theta_j_) - sin(theta_j_ )/ therahold_slope;
-        float Y_ = cos(psi_i_)*cos(theta_i_) - sin(theta_i_ )/ therahold_slope;
-        float K_ = V_j_.norm() / V_i_.norm();
+    Eigen::Vector3f V_i_ = R * V_i;
+    Eigen::Vector3f V_j_ = R * V_j;
+    auto[psi_i_, theta_i_] = Velocity2Angles(V_i_);
+    auto[psi_j_, theta_j_] = Velocity2Angles(V_j_);
+    float X_ = cos(psi_j_)*cos(theta_j_) - sin(theta_j_) / therahold_slope;
+    float Y_ = cos(psi_i_)*cos(theta_i_) - sin(theta_i_) / therahold_slope;
+    float K_ = V_j_.norm() / V_i_.norm();
 
-        Eigen::Vector2f target_xy_ = calculatePerpendicularIntersection(X_, Y_, K_);
+    Eigen::Vector2f target_xy_ = calculatePerpendicularIntersection(X_, Y_, K_);
 
-    result[4] = cos(psi_i_) * cos(theta_i_) - sin(theta_i_) / therahold_slope - target_xy_[1];
+    // std::cout << "X = " << X_ <<" Y = " << Y_ << " K = " << K_<< "  target_x = " << target_xy_[0] << "target_y = " << target_xy_[1] << std::endl;
 
+    result[4] = Y_ - target_xy_[1];
+   // 检查结果数组内容
+    std::cout << "Constraints: ";
+    for (unsigned i = 0; i < m; ++i) {
+        std::cout << result[i] << " ";
+    }
+    std::cout << std::endl;
         }
+
 
 int main() {
     // 创建优化器对象，选择优化算法
     nlopt::opt opt;
 
-     opt = nlopt::opt(nlopt::GN_MLSL, 2); // 选择全局优化算法
-    nlopt::opt local_opt(nlopt::LD_SLSQP, 2); // 选择局部优化算法
-    opt.set_local_optimizer(local_opt);
+
+    
+
+    //  opt = nlopt::opt(nlopt::LD_SLSQP, 2); // 选择全局优化算法
+     opt = nlopt::opt(nlopt::GN_ISRES, 2); // 选择全局优化算法
+    // opt = nlopt::opt(nlopt::LD_MMA, 2);  // 选择 GN_AGS 算法，2 代表变量个数
+
+
+     
+    // opt = nlopt::opt(nlopt::GN_CRS2_LM, 2); // 选择全局优化算法
+    // nlopt::opt local_opt(nlopt::LD_SLSQP, 2); // 选择局部优化算法
+    // opt.set_local_optimizer(local_opt);
+
 
     // 设置目标函数
     opt.set_min_objective(objective_function, nullptr);
 
     // 设置约束
-    std::vector<double> tol(2 + 4, 1e-8);  // 容差向量
-    opt.add_inequality_mconstraint(constraint_function, nullptr, tol);
+    std::vector<double> tol(5, 1e-8);  // 容差向量
 
-
-    // 设置变量的边界
-    std::vector<double> lb(-3.14, 3.14);  // 下边界
-    std::vector<double> ub(-1.57, 1.57);  // 上边界
-    opt.set_lower_bounds(lb);
-    opt.set_upper_bounds(ub);
-
-    // 设置优化参数
-    opt.set_xtol_rel(1e-6);  // 设置相对容忍度
 
     // 设置初始点
     Eigen::Vector3f V_i = {-0.49, 0.49, 0.36};
@@ -182,7 +202,36 @@ int main() {
     Eigen::Vector3f V_j = {0.52, 0.45, -0.38};
     Eigen::Vector3f P_j = {-7.77, -8.67, 30.65};
     auto [psi_now, theta_now] = Velocity2Angles(V_i);
-    std::vector<double> x(psi_now, theta_now);  // 初始点
+    std::vector<double> x={psi_now, theta_now};  // 初始点
+     // 输出初始点值
+    std::cout << "Initial psi_now: " << psi_now << std::endl;
+    std::cout << "Initial theta_now: " << theta_now << std::endl;
+
+    opt.add_inequality_mconstraint(constraint_function, nullptr, tol);
+
+
+
+
+
+
+
+   
+
+    
+
+
+    
+
+    // 设置变量的边界
+    std::vector<double> lb{-3.14, -1.57};  // 下边界
+    std::vector<double> ub{3.14, 1.57};  // 上边界
+    opt.set_lower_bounds(lb);
+    opt.set_upper_bounds(ub);
+
+    // 设置优化参数
+    opt.set_xtol_rel(1e-6);  // 设置相对容忍度
+
+    
     opt.set_maxeval(1000); 
 
     // 执行优化

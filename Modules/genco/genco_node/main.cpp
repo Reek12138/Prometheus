@@ -184,7 +184,7 @@ int main(int argc, char **argv){
                 opt.set_min_objective(objective_function, &data);
 
                 // 设置约束
-                std::vector<double> tol(swarm_num_uav + 4 - 1, 1e-8);  // 容差向量
+                std::vector<double> tol(swarm_num_uav + 4 , 1e-8);  // 容差向量
                 opt.add_inequality_mconstraint(constraint_function, &data, tol);
 
                 // 设置变量的上下界
@@ -348,7 +348,9 @@ int main(int argc, char **argv){
 
                     float slope = calculateSlope(Vel_);
 
-                    
+                    if(Pos_.norm() <= safe_therahold){
+                        cout << "与uav " << std::to_string(i+1) << " 的距离 ：" << Pos_.norm() <<" (m)" << std::endl;
+                    }
 
                      // 在碰撞锥内有碰撞风险
                     if(slope > therahold_slope){
@@ -597,6 +599,12 @@ void constraint_function(unsigned m, double *result, unsigned n, const double *x
         } else {
             result[4 + i] = 0.0;  // 对于无效约束，确保返回 0
         }
+
+        std::cout << "Constraints: ";
+    for (unsigned i = 0; i < m; ++i) {
+        std::cout << result[i] << " ";
+    }
+    std::cout << std::endl;
     }
 }
 
