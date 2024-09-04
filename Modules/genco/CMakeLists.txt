@@ -236,12 +236,20 @@ add_executable(start_formation src/start_formation.cpp)
 add_dependencies(start_formation genco_gencpp)
 target_link_libraries(start_formation ${catkin_LIBRARIES})
 
+add_executable(exp_start src/exp_start.cpp)
+add_dependencies(exp_start genco_gencpp)
+target_link_libraries(exp_start ${catkin_LIBRARIES})
+
+add_executable(swarm_offset src/swarm_offset.cpp)
+add_dependencies(swarm_offset genco_gencpp)
+target_link_libraries(swarm_offset ${catkin_LIBRARIES})
+
 # add_executable(genco_node genco_node/main.cpp genco_node/genco_node.cpp)
 # add_dependencies(genco_node genco_gencpp)
 # target_link_libraries(genco_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${NLopt_LIBRARIES})
 
 add_executable(genco_node genco_node/main_.cpp genco_node/genco_node.cpp)
 add_dependencies(genco_node genco_gencpp)
-target_link_libraries(genco_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${NLopt_LIBRARIES} quadprog)
+target_link_libraries(genco_node ${catkin_LIBRARIES} ${Boost_LIBRARIES} )
 
 
