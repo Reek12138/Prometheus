@@ -221,8 +221,10 @@ std::tuple<Eigen::Vector3f, Eigen::Vector3f, Eigen::Matrix3f> maxV_point(const s
                 if(volume < V_min){
                     R_min = R;
                     V_min = volume;
-                    max_point = R.inverse() * max_point_;
-                    min_point = R.inverse() * min_point_;
+                    // max_point = R.inverse() * max_point_;
+                    // min_point = R.inverse() * min_point_;
+                    max_point = max_point_;
+                    min_point = min_point_;
                     
                 }
 
@@ -282,8 +284,10 @@ bool IsPointInTetrahedron(const Eigen::Vector3f& P, const Eigen::Vector3f& A, co
 bool checkrealpoint(const Eigen::Vector3f& self_point,const Eigen::Vector3f& conflict_point, const Eigen::Vector3f& min_point, const Eigen::Vector3f& max_point, const Eigen::Matrix3f& R){
     // Eigen::Vector3f self_point_ = R * self_point;
     Eigen::Vector3f j_point_ = R * (conflict_point - self_point);
-    Eigen::Vector3f min_point_ = R * min_point;
-    Eigen::Vector3f max_point_ = R * max_point;
+    // Eigen::Vector3f min_point_ = R * min_point;
+    // Eigen::Vector3f max_point_ = R * max_point;
+    Eigen::Vector3f min_point_ = min_point;
+    Eigen::Vector3f max_point_ = max_point;
     Eigen::Vector3f self_point_;
     self_point_ << 0, 0, 0;
 
@@ -375,6 +379,11 @@ bool checkrealpoint(const Eigen::Vector3f& self_point,const Eigen::Vector3f& con
         std::cout <<""<<std::endl;
         std::cout <<""<<std::endl;
         std::cout << "######################  发生错误  ######################" << std::endl;
+        std::cout << "min_point_:" << min_point_ <<std::endl;
+        std::cout << "min_point_:" << min_point_ <<std::endl;
+        std::cout << "max_point_:" << max_point_ <<std::endl;
+        std::cout << "max_point_:" << max_point_ <<std::endl;
+        std::cout << "self_point_:" << self_point_ <<std::endl;
         std::cout <<""<<std::endl;
         std::cout <<""<<std::endl;
         std::cout <<"========================================================"<<std::endl;
