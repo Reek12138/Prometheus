@@ -294,10 +294,10 @@ bool checkrealpoint(const Eigen::Vector3f& self_point,const Eigen::Vector3f& con
     Eigen::Vector3f point1, point2, point3, point4, point5, point6, point7, point8;
     point1 << min_point.x(), min_point.y(), min_point.z();
     point2 << max_point.x(), min_point.y(), min_point.z();
-    point3 << max_point.x(), min_point.y(), max_point.z();
-    point4 << min_point.x(), min_point.y(), max_point.z();
-    point5 << min_point.x(), max_point.y(), min_point.z();
-    point6 << max_point.x(), max_point.y(), min_point.z();
+    point3 << max_point.x(), max_point.y(), min_point.z();
+    point4 << min_point.x(), max_point.y(), min_point.z();
+    point5 << min_point.x(), min_point.y(), max_point.z();
+    point6 << max_point.x(), min_point.y(), max_point.z();
     point7 << max_point.x(), max_point.y(), max_point.z();
     point8 << min_point.x(), max_point.y(), max_point.z();
 

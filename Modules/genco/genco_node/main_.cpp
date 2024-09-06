@@ -11,6 +11,8 @@
 #include <tuple>
 #include <random>
 
+#include <std_msgs/Float32.h>
+
 // #include <nlopt.hpp>
 
 
@@ -20,6 +22,7 @@
 using namespace std;
 
 ros::Publisher command_pub;
+ros::Publisher distance_pub[MAX_NUM+1];
 ros::Subscriber state_listener[MAX_NUM+1];
 ros::Subscriber command_listener;
 prometheus_msgs::SwarmCommand swarm_command;
@@ -103,6 +106,8 @@ int main(int argc, char **argv){
 
     for(int i = 1; i <= swarm_num_uav; i++){
         state_listener[i] = nh.subscribe<prometheus_msgs::DroneState>("/uav" + std::to_string(i) + "/prometheus/drone_state", 10, boost::bind(drone_state_cb,_1,i-1));
+        distance_pub[i] = nh.advertise<std_msgs::Float32>("/uav" + std::to_string(self_id) + "/distance_to_" + std::to_string(i), 10);
+
     }
 
     // ros::Duration(1.0).sleep();
@@ -187,16 +192,20 @@ int main(int argc, char **argv){
                                 Eigen::Vector3f v_ = data.R[k] * v;
                                 auto [psi_i_, theta_i_] = Velocity2Angles(v_);
                                 constrain_flag = (cos(psi_i_) * cos(theta_i_) - sin(theta_i_) / data.therahold_slope - data.target_xy_[k][1]) > 0;
+                                if(constrain_flag == false){
+                                    break;
+                                } 
                             }
                         }
 
 
                         if(constrain_flag == true){
-                            solve_flag = true;
 
                             // float obj_value = std::pow((psi - target_psi), 2) + std::pow((theta - target_theta), 2) + 0.5 * std::pow((psi - last_psi), 2) + 0.5 * std::pow((theta - last_theta), 2);
                             float obj_value = std::pow((psi - target_psi), 2) + std::pow((theta - target_theta), 2);
                             if(obj_value < minf_now){
+                                solve_flag = true;
+
                                 genco_psi = psi;
                                 genco_theta = theta;
 
@@ -235,7 +244,7 @@ int main(int argc, char **argv){
                     }else{
                         std::cout << "- - - - 优化无解，重新求解 - - - -" << std::endl;
 
-                        float minf_now_ = std::numeric_limits<double>::infinity();
+                        float maxf_now_ = -std::numeric_limits<double>::infinity();
                         float genco_psi_ = 0.0;
                         float genco_theta_ = 0.0;
                         
@@ -244,27 +253,33 @@ int main(int argc, char **argv){
                                 float psi = -PI + ((2*PI)/100)*i;
                                 float theta = -PI/2 +((PI)/50)*j;
                                 
-                                float obj_value_ = 0;
+                                // float obj_value_ = 0;
+                                float minf_now_ = std::numeric_limits<double>::infinity();
+
                                 for(int k = 0; k<swarm_num_uav; k++){
                                     if(genco_flag[k] == true){
                                         Eigen::Vector3f v = Angles2Velocity(psi, theta, data.V);
                                         Eigen::Vector3f v_ = data.R[k] * v;
                                         auto [psi_i_, theta_i_] = Velocity2Angles(v_);
-                                        obj_value_ += std::pow((cos(psi_i_) * cos(theta_i_) - sin(theta_i_) / data.therahold_slope - data.target_xy_[k][1]), 2);
+
+                                        float obj_value_ = (cos(psi_i_) * cos(theta_i_) - sin(theta_i_) / data.therahold_slope - data.target_xy_[k][1]);
+                                        if(obj_value_ <= minf_now_){
+                                            minf_now_ = obj_value_;                                        
+                                            }
                                     }
                                 }
 
-                                if(obj_value_ < minf_now_){
+                                if(minf_now_ >= maxf_now_){
                                     genco_psi_ = psi;
                                     genco_theta_ = theta;
 
-                                    minf_now_ = obj_value_;
+                                    maxf_now_ = minf_now_;
 
                                 }
 
                             }
                         }
-                        std::cout << "当前psi: " << genco_psi_<<" 当前theta: " << genco_theta_<< "当前f min=" <<minf_now_ << std::endl;
+                        std::cout << "当前psi: " << genco_psi_<<" 当前theta: " << genco_theta_<< "当前f min=" << maxf_now_ << std::endl;
                         Eigen::Vector3f genco_V = Angles2Velocity(genco_psi_, genco_theta_, trajectory[0].velocity.norm());
                         std::cout <<"无人机 " << self_id<< "  genco速度 xyz: X = " << genco_V.x() << " Y = " << genco_V.y() << " Z = " << genco_V.z() << std::endl;
                         std::cout << "==================================================" << std::endl;
@@ -318,12 +333,18 @@ int main(int argc, char **argv){
 
                     float slope = calculateSlope(Vel_);
 
+                    float distance = Pos_.norm();
+                    std_msgs::Float32 distance_msg;
+                    distance_msg.data = distance;
+                    distance_pub[i+1].publish(distance_msg);
+
                     if(Pos_.norm() <= safe_therahold){
                         cout << "###########与uav " << std::to_string(i+1) << " 的距离 ：" << Pos_.norm() <<" (m)" << std::endl;
                     }else{
                         cout << "***********与uav " << std::to_string(i+1) << " 的距离 ：" << Pos_.norm() <<" (m)" << std::endl;
-
                     }
+
+                    
 
                      // 在碰撞锥内有碰撞风险
                     if(slope > therahold_slope){
@@ -377,9 +398,11 @@ int main(int argc, char **argv){
                     }
                     // 检查是否所有元素都是 false
                     for (size_t i = 0; i < sizeof(genco_flag)/sizeof(genco_flag[0]); ++i) {
-                        if (!genco_flag[i]) {
-                            self_genco_flag = false;
+                        if (genco_flag[i]) {
+                            self_genco_flag = true;
                             break;
+                        }else{
+                            self_genco_flag = false;
                         }
                     }
             }
