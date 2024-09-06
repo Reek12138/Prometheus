@@ -4,12 +4,12 @@
 	<!-- genco相关参数 -->
 	<arg name="collision_therahold" default="40.0"/><!-- 碰撞判定距离 -->
 	<arg name="safe_therahold" default="2.0"/><!-- 飞机安全距离 -->
-	<arg name="total_time" default="30.0"/><!-- 飞行时间 -->
+	<arg name="total_time" default="60.0"/><!-- 飞行时间 -->
 	<arg name="ros_t" default="0.2"/><!-- 间隔时间 -->
-	<arg name="psi_therahold" default="1.0"/><!-- 采样范围 -->
-	<arg name="theta_therahold" default="1.0"/><!-- 采样范围 -->
-	<arg name="potential_T" default="15"/><!-- 采样时间 -->
-	<arg name="sample_num" default="3"/><!-- 采样数量 -->
+	<arg name="psi_therahold" default="3.0"/><!-- 采样范围 -->
+	<arg name="theta_therahold" default="3.0"/><!-- 采样范围 -->
+	<arg name="potential_T" default="5"/><!-- 采样时间 -->
+	<arg name="sample_num" default="5"/><!-- 采样数量 -->
 
 
 	<!-- 无人机集群数量 -->
@@ -24,27 +24,27 @@
     <arg name="uav1_init_z" default="3.0"/>
     <!-- <arg name="uav1_init_z" default="20.0"/> -->
 
-	<arg name="uav1_end_x" default="0.0"/>
-    <arg name="uav1_end_y" default="-15.0"/>
-    <arg name="uav1_end_z" default="6.0"/>
+	<arg name="uav1_end_x" default="10.0"/>
+    <arg name="uav1_end_y" default="-20.0"/>
+    <arg name="uav1_end_z" default="9.0"/>
 
-    <arg name="uav2_init_x" default="-3.0"/>
-    <arg name="uav2_init_y" default="-15.0"/>
-    <arg name="uav2_init_z" default="6.0"/>
+    <arg name="uav2_init_x" default="10.0"/>
+    <arg name="uav2_init_y" default="-20.0"/>
+    <arg name="uav2_init_z" default="3.0"/>
     <!-- <arg name="uav2_init_z" default="20.0"/> -->
 
-	<arg name="uav2_end_x" default="3.0"/>
+	<arg name="uav2_end_x" default="0.0"/>
     <arg name="uav2_end_y" default="0.0"/>
-    <arg name="uav2_end_z" default="3.0"/>
+    <arg name="uav2_end_z" default="9.0"/>
 
-	<arg name="uav3_init_x" default="3.0"/>
-    <arg name="uav3_init_y" default="-15.0"/>
-    <arg name="uav3_init_z" default="3.0"/>
+	<arg name="uav3_init_x" default="10.0"/>
+    <arg name="uav3_init_y" default="0.0"/>
+    <arg name="uav3_init_z" default="9.0"/>
     <!-- <arg name="uav2_init_z" default="20.0"/> -->
 
-	<arg name="uav3_end_x" default="-3.0"/>
-    <arg name="uav3_end_y" default="0.0"/>
-    <arg name="uav3_end_z" default="6.0"/>
+	<arg name="uav3_end_x" default="0.0"/>
+    <arg name="uav3_end_y" default="-20.0"/>
+    <arg name="uav3_end_z" default="3.0"/>
 
     
 
@@ -298,11 +298,7 @@
 
 	
 
-	<!-- 启动rviz,设为false可关闭 -->
-	<arg name="visualization" default="true"/>
-	<group if="$(arg visualization)">
-        <node type="rviz" name="rviz" pkg="rviz" args="-d $(find genco)/view.rviz" />
-    </group>
+	
 
 	<!-- 启动Gazebo -->
 	<!-- Gazebo configs -->
@@ -321,4 +317,10 @@
         <arg name="respawn_gazebo" value="$(arg respawn_gazebo)"/>
         <arg name="world_name" value="$(arg world)"/>
     </include>
+
+	<!-- 启动rviz,设为false可关闭 -->
+	<arg name="visualization" default="true"/>
+	<group if="$(arg visualization)">
+        <node type="rviz" name="rviz" pkg="rviz" args="-d $(find genco)/view.rviz" />
+    </group>
 </launch>
