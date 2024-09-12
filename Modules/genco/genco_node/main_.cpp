@@ -174,7 +174,7 @@ int main(int argc, char **argv){
                 data.theta_max = PI/2;
                 data.V = trajectory[0].velocity.norm();
 
-                float minf_now = std::numeric_limits<double>::infinity();
+                float minf_now = std::numeric_limits<float>::infinity();
                 float genco_psi = 0.0;
                 float genco_theta = 0.0;
                 // 判断优化问题是否有解
@@ -244,7 +244,7 @@ int main(int argc, char **argv){
                     }else{
                         std::cout << "- - - - 优化无解，重新求解 - - - -" << std::endl;
 
-                        float maxf_now_ = -std::numeric_limits<double>::infinity();
+                        float maxf_now_ = -std::numeric_limits<float>::infinity();
                         float genco_psi_ = 0.0;
                         float genco_theta_ = 0.0;
                         
@@ -254,7 +254,7 @@ int main(int argc, char **argv){
                                 float theta = -PI/2 +((PI)/50)*j;
                                 
                                 // float obj_value_ = 0;
-                                float minf_now_ = std::numeric_limits<double>::infinity();
+                                float minf_now_ = std::numeric_limits<float>::infinity();
 
                                 for(int k = 0; k<swarm_num_uav; k++){
                                     if(genco_flag[k] == true){
