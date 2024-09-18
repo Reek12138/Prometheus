@@ -4,18 +4,18 @@
     <!-- 无人机初始位置和终点位置 -->
 	<arg name="uav1_init_x" default="0.0"/>
     <arg name="uav1_init_y" default="0.0"/>
-    <arg name="uav1_init_z" default="9.0"/>
+    <arg name="uav1_init_z" default="3.0"/>
     <!-- <arg name="uav1_init_z" default="20.0"/> -->
 
-	<arg name="uav1_end_x" default="6.0"/>
+	<arg name="uav1_end_x" default="10.0"/>
     <arg name="uav1_end_y" default="-20.0"/>
-    <arg name="uav1_end_z" default="3.0"/>
+    <arg name="uav1_end_z" default="9.0"/>
 
     <arg name="uav1_offset_x" default="0.0"/>
     <arg name="uav1_offset_y" default="0.0"/>
     <arg name="uav1_offset_z" default="0.0"/>
 
-    <arg name="uav2_init_x" default="6.0"/>
+    <arg name="uav2_init_x" default="10.0"/>
     <arg name="uav2_init_y" default="-20.0"/>
     <arg name="uav2_init_z" default="3.0"/>
     <!-- <arg name="uav2_init_z" default="20.0"/> -->
@@ -28,18 +28,19 @@
     <arg name="uav2_offset_y" default="-3.0"/>
     <arg name="uav2_offset_z" default="0.0"/>
 
-    <arg name="uav3_init_x" default="6.0"/>
+    <arg name="uav3_init_x" default="10.0"/>
     <arg name="uav3_init_y" default="0.0"/>
-    <arg name="uav3_init_z" default="3.0"/>
+    <arg name="uav3_init_z" default="9.0"/>
     <!-- <arg name="uav2_init_z" default="20.0"/> -->
 
 	<arg name="uav3_end_x" default="0.0"/>
     <arg name="uav3_end_y" default="-20.0"/>
-    <arg name="uav3_end_z" default="9.0"/>
+    <arg name="uav3_end_z" default="3.0"/>
 
     <arg name="uav3_offset_x" default="3.0"/>
     <arg name="uav3_offset_y" default="0.0"/>
-    <arg name="uav3_offset_z" default="-0.5"/>
+    <arg name="uav3_offset_z" default="0.0"/>
+
 
     <!-- 将该参数设置为ROS参数 -->
     <param name="swarm_num_uav" value="$(arg swarm_num_uav)"/>

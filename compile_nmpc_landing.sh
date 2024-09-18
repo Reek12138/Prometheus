@@ -1,0 +1,1 @@
+catkin_make --source Modules/nmpc_landing --build build/nmpc_landing

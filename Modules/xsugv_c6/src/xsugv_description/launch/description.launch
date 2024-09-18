@@ -4,7 +4,7 @@
   <arg name="robot_namespace" default="/"/>
   <arg name="aruco" default=""/>
 
-  <param name="robot_description" command="$(find xacro)/xacro '$(find xsugv_description)/urdf/xsugv_c6_ros_vlp16.urdf.xacro'
+  <param name="robot_description" command="$(find xacro)/xacro '$(find xsugv_description)/urdf/xsugv_c6_ros.urdf.xacro'
     robot_namespace:=$(arg robot_namespace) aruco:=$(arg aruco)" />
 
 </launch>

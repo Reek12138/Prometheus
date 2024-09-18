@@ -11,7 +11,7 @@ from geometry_msgs.msg import Quaternion
 import tf.transformations
 from math import pi
 
-move_type = 2
+move_type = 1
 
 def euler_to_quaternion(roll, pitch, yaw):
     quaternion = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
