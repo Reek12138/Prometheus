@@ -57,6 +57,7 @@ Detection_result landpad_det;
 // float pad_height;
 prometheus_msgs::DroneState _DroneState;    // 无人机状态
 bool init_flag = false;
+bool ignore_version = true;
 
 
 
@@ -95,18 +96,18 @@ void landpad_det_cb(const prometheus_msgs::DetectionInfo::ConstPtr &msg){
     pos_gimbal_frame[1] = - landpad_det.Detection_info.position[0];
     pos_gimbal_frame[2] = - landpad_det.Detection_info.position[2];
 
-    std::cout << "detect_pos[0] = " <<  pos_gimbal_frame[0] << "detect_pos[1] = " <<  pos_gimbal_frame[1] << "detect_pos[2] = " <<  pos_gimbal_frame[2] << std::endl;
+     std::cout << "detect_pos[0] = " <<  pos_gimbal_frame[0] << "detect_pos[1] = " <<  pos_gimbal_frame[1] << "detect_pos[2] = " <<  pos_gimbal_frame[2] << std::endl;
     std::cout << "R = " << R_camera_to_body << std:: endl;
+
     landpad_det.pos_body_frame =R_camera_to_body * pos_gimbal_frame;//从相机坐标系转换到机身坐标系
 
     // 机体系 -> 机体惯性系 (原点在机体的惯性系) (对无人机姿态进行解耦)
     // landpad_det.pos_body_enu_frame = R_Body_to_ENU * landpad_det.pos_body_frame;
-    landpad_det.pos_body_enu_frame = landpad_det.pos_body_frame;
+    landpad_det.pos_body_enu_frame = landpad_det.pos_body_frame * 1.33;
     std::cout<< "pos_body_enu_frame[0] = " << landpad_det.pos_body_enu_frame[0] << " pos_body_enu_frame[1] = " << landpad_det.pos_body_enu_frame[1] << " pos_body_enu_frame[2] = " << landpad_det.pos_body_enu_frame[2] << std::endl;
     Eigen::Vector3d error_vec;
     error_vec = roi_point - mav_pos_;
     std::cout<< "true_error[0] = " << error_vec[0] << "  true_error[1] = "<< error_vec[1] << " true_error[2] = " << error_vec[2] << std::endl ;
-
     std::cout << "----------------------------------------------------------------------------" << std::endl;
     
     landpad_det.att_body_frame[0] = landpad_det.Detection_info.attitude[0];//yaw 顺时针为负
@@ -169,98 +170,111 @@ float constrain_angle(float angle) {
 }
 
 void gimbal_control_cb(const ros::TimerEvent& e) {
-    // 更新滑动窗口
-    if (pitch_window.size() >= gimbal_window_size) {
-        pitch_window.pop_front();
+    if(ignore_version){
+        Eigen::Vector3d error_vec;
+        double distance_2d;
+        error_vec = roi_point - mav_pos_;
+        distance_2d = std::sqrt(error_vec(0) * error_vec(0) + error_vec(1) * error_vec(1));
+        // 理想的吊舱控制情况
+        gimbal_att_sp[0] = 0.0;
+        gimbal_att_sp[1] = std::atan2(error_vec(2), distance_2d)/PI*180; //pitch
+        // desired_yaw = -std::atan2(error_vec(1), error_vec(0))/PI*180;//yaw
+        gimbal_att_sp[2] = -std::atan2(error_vec(1), error_vec(0))/PI*180;
+    }else{
+            // 更新滑动窗口
+                if (pitch_window.size() >= gimbal_window_size) {
+                    pitch_window.pop_front();
+                }
+                if (yaw_window.size() >= gimbal_window_size) {
+                    yaw_window.pop_front();
+                }
+
+                pitch_window.push_back(sight_angle[1]);
+                yaw_window.push_back(sight_angle[0]);
+
+                // 计算平滑后的视场角误差P
+                float smoothed_pitch = calculate_average(pitch_window);
+                float smoothed_yaw = calculate_average(yaw_window);
+
+                // 计算平滑后的视场角误差I
+                float pitch_integral = calculate_sum(pitch_window);
+                float yaw_integral = calculate_sum(yaw_window);
+                float max_i = 0.1;
+                pitch_integral = min(pitch_integral, max_i);
+                yaw_integral = min(yaw_integral, max_i);
+
+                // 计算平滑后的视场角误差D
+                float pitch_error_rate = 0.0;
+                float yaw_error_rate = 0.0;
+
+                pitch_error_rate = smoothed_pitch - last_smoothed_pitch;
+                yaw_error_rate = smoothed_yaw - last_smoothed_yaw;
+
+                last_smoothed_pitch = smoothed_pitch;
+                last_smoothed_yaw = smoothed_yaw;
+
+
+                // if (pitch_window.size() > 1) {
+                //     pitch_error_rate = (pitch_window.back() - pitch_window.front()) / (pitch_window.size() * gimbal_rate);
+                // }
+                // if (yaw_window.size() > 1) {
+                //     yaw_error_rate = (yaw_window.back() - yaw_window.front()) / (yaw_window.size() * gimbal_rate);
+                // }
+
+
+                // 使用平滑后的视场角误差进行控制
+                // gimbal_att_sp[0] = 0.0;
+                // gimbal_att_sp[1] = gimbal_att_deg[1] - k_gimbal_p * smoothed_pitch / PI * 180; // pitch
+                // gimbal_att_sp[1] = max(gimbal_att_sp[1], -60.0);
+                // // gimbal_att_sp[2] = gimbal_att_deg[2] + k_gimbal_p * smoothed_yaw / PI * 180; // yaw
+                // gimbal_att_sp[2] = 0.0; // yaw
+
+                gimbal_att_sp[0] = 0.0;
+                // gimbal_att_sp[1] = gimbal_att_deg[1] - (k_gimbal_p * smoothed_pitch + k_gimbal_d * pitch_error_rate) / PI * 180; // pitch
+                // gimbal_att_sp[1] = max(gimbal_att_sp[1], -60.0);
+                gimbal_att_sp[1] = -60.0;
+                gimbal_att_sp[2] = 0.0; // yaw
+                // gimbal_att_sp[2] = gimbal_att_deg[2] + (k_gimbal_p * smoothed_yaw + k_gimbal_d * yaw_error_rate) / PI * 180; // yaw
+
+                // gimbal_att_sp[0] = 0.0;
+                // gimbal_att_sp[1] = gimbal_att_deg[1] - (k_gimbal_p * smoothed_pitch + k_gimbal_i * pitch_integral + k_gimbal_d * pitch_error_rate) / PI * 180; // pitch
+                // gimbal_att_sp[2] = gimbal_att_deg[2] + (k_gimbal_p * smoothed_yaw + k_gimbal_i * yaw_integral + k_gimbal_d * yaw_error_rate) / PI * 180; // yaw
+
+
+            //     gimbal_att_sp[0] = 0;
+                
+            //     float pitch_angle = gimbal_att_deg[1] - smoothed_pitch / PI * 180;
+            //     if (pitch_angle >= -30.0 && pitch_angle < 0.0) {
+            //         gimbal_att_sp[1] = -15.0;
+            //     } else if (pitch_angle >= -60.0 && pitch_angle < -30.0) {
+            //         gimbal_att_sp[1] = -45.0;
+            //     }else {
+            //         gimbal_att_sp[1] = -60.0;
+            //     }
+                
+            //     float yaw_angle = constrain_angle(gimbal_att_deg[2] + smoothed_yaw / PI * 180);
+
+            //     if (yaw_angle >= -30.0 && yaw_angle < 30.0) {
+            //     gimbal_att_sp[2] = 0.0;
+            // } else if (yaw_angle >= -90.0 && yaw_angle < -30.0) {
+            //     gimbal_att_sp[2] = -60.0;
+            // } else if (yaw_angle >= -150.0 && yaw_angle < -90.0) {
+            //     gimbal_att_sp[2] = -120.0;
+            // } else if (yaw_angle >= -180.0 && yaw_angle < -150.0) {
+            //     gimbal_att_sp[2] = -180.0;
+            // } else if (yaw_angle >= 30.0 && yaw_angle < 90.0) {
+            //     gimbal_att_sp[2] = 60.0;
+            // } else if (yaw_angle >= 90.0 && yaw_angle < 150.0) {
+            //     gimbal_att_sp[2] = 120.0;
+            // } else if (yaw_angle >= 150.0 && yaw_angle <= 180.0) {
+            //     gimbal_att_sp[2] = 180.0;
+            // }
+                
+                
+
+                // gimbal_control_.send_mount_control_command(gimbal_att_sp);
     }
-    if (yaw_window.size() >= gimbal_window_size) {
-        yaw_window.pop_front();
-    }
-
-    pitch_window.push_back(sight_angle[1]);
-    yaw_window.push_back(sight_angle[0]);
-
-    // 计算平滑后的视场角误差P
-    float smoothed_pitch = calculate_average(pitch_window);
-    float smoothed_yaw = calculate_average(yaw_window);
-
-    // 计算平滑后的视场角误差I
-    float pitch_integral = calculate_sum(pitch_window);
-    float yaw_integral = calculate_sum(yaw_window);
-    float max_i = 0.1;
-    pitch_integral = min(pitch_integral, max_i);
-    yaw_integral = min(yaw_integral, max_i);
-
-    // 计算平滑后的视场角误差D
-    float pitch_error_rate = 0.0;
-    float yaw_error_rate = 0.0;
-
-    pitch_error_rate = smoothed_pitch - last_smoothed_pitch;
-    yaw_error_rate = smoothed_yaw - last_smoothed_yaw;
-
-    last_smoothed_pitch = smoothed_pitch;
-    last_smoothed_yaw = smoothed_yaw;
-
-
-    // if (pitch_window.size() > 1) {
-    //     pitch_error_rate = (pitch_window.back() - pitch_window.front()) / (pitch_window.size() * gimbal_rate);
-    // }
-    // if (yaw_window.size() > 1) {
-    //     yaw_error_rate = (yaw_window.back() - yaw_window.front()) / (yaw_window.size() * gimbal_rate);
-    // }
-
-
-    // 使用平滑后的视场角误差进行控制
-    // gimbal_att_sp[0] = 0.0;
-    // gimbal_att_sp[1] = gimbal_att_deg[1] - k_gimbal_p * smoothed_pitch / PI * 180; // pitch
-    // gimbal_att_sp[1] = max(gimbal_att_sp[1], -60.0);
-    // // gimbal_att_sp[2] = gimbal_att_deg[2] + k_gimbal_p * smoothed_yaw / PI * 180; // yaw
-    // gimbal_att_sp[2] = 0.0; // yaw
-
-    gimbal_att_sp[0] = 0.0;
-    // gimbal_att_sp[1] = gimbal_att_deg[1] - (k_gimbal_p * smoothed_pitch + k_gimbal_d * pitch_error_rate) / PI * 180; // pitch
-    // gimbal_att_sp[1] = max(gimbal_att_sp[1], -60.0);
-    gimbal_att_sp[1] = -60.0;
-    gimbal_att_sp[2] = 0.0; // yaw
-    // gimbal_att_sp[2] = gimbal_att_deg[2] + (k_gimbal_p * smoothed_yaw + k_gimbal_d * yaw_error_rate) / PI * 180; // yaw
-
-    // gimbal_att_sp[0] = 0.0;
-    // gimbal_att_sp[1] = gimbal_att_deg[1] - (k_gimbal_p * smoothed_pitch + k_gimbal_i * pitch_integral + k_gimbal_d * pitch_error_rate) / PI * 180; // pitch
-    // gimbal_att_sp[2] = gimbal_att_deg[2] + (k_gimbal_p * smoothed_yaw + k_gimbal_i * yaw_integral + k_gimbal_d * yaw_error_rate) / PI * 180; // yaw
-
-
-//     gimbal_att_sp[0] = 0;
     
-//     float pitch_angle = gimbal_att_deg[1] - smoothed_pitch / PI * 180;
-//     if (pitch_angle >= -30.0 && pitch_angle < 0.0) {
-//         gimbal_att_sp[1] = -15.0;
-//     } else if (pitch_angle >= -60.0 && pitch_angle < -30.0) {
-//         gimbal_att_sp[1] = -45.0;
-//     }else {
-//         gimbal_att_sp[1] = -60.0;
-//     }
-    
-//     float yaw_angle = constrain_angle(gimbal_att_deg[2] + smoothed_yaw / PI * 180);
-
-//     if (yaw_angle >= -30.0 && yaw_angle < 30.0) {
-//     gimbal_att_sp[2] = 0.0;
-// } else if (yaw_angle >= -90.0 && yaw_angle < -30.0) {
-//     gimbal_att_sp[2] = -60.0;
-// } else if (yaw_angle >= -150.0 && yaw_angle < -90.0) {
-//     gimbal_att_sp[2] = -120.0;
-// } else if (yaw_angle >= -180.0 && yaw_angle < -150.0) {
-//     gimbal_att_sp[2] = -180.0;
-// } else if (yaw_angle >= 30.0 && yaw_angle < 90.0) {
-//     gimbal_att_sp[2] = 60.0;
-// } else if (yaw_angle >= 90.0 && yaw_angle < 150.0) {
-//     gimbal_att_sp[2] = 120.0;
-// } else if (yaw_angle >= 150.0 && yaw_angle <= 180.0) {
-//     gimbal_att_sp[2] = 180.0;
-// }
-    
-    
-
-    // gimbal_control_.send_mount_control_command(gimbal_att_sp);
 }
 
 void aruco_cb(const prometheus_msgs::ArucoInfo::ConstPtr& msg)
@@ -301,14 +315,14 @@ void aruco_cb(const prometheus_msgs::ArucoInfo::ConstPtr& msg)
 
     if(aruco_info.detected)
     {
-        cout << "Aruco_ID: [" << aruco_info.aruco_num << "]  detected: [yes] " << endl;
-        cout << "Pos [camera]: "<< aruco_info.position[0] << " [m] "<< aruco_info.position[1] << " [m] "<< aruco_info.position[2] << " [m] "<<endl;
-        cout << "Pos [enu]   : "<< aruco_pos_enu[0]       << " [m] "<< aruco_pos_enu[1]       << " [m] "<< aruco_pos_enu[2]       << " [m] "<<endl;
+        // cout << "Aruco_ID: [" << aruco_info.aruco_num << "]  detected: [yes] " << endl;
+        // cout << "Pos [camera]: "<< aruco_info.position[0] << " [m] "<< aruco_info.position[1] << " [m] "<< aruco_info.position[2] << " [m] "<<endl;
+        // cout << "Pos [enu]   : "<< aruco_pos_enu[0]       << " [m] "<< aruco_pos_enu[1]       << " [m] "<< aruco_pos_enu[2]       << " [m] "<<endl;
         // cout << "Att [camera]: "<< aruco_info.position[0] << " [m] "<< aruco_info.position[1] << " [m] "<< aruco_info.position[2] << " [m] "<<endl;
-        cout << "Sight Angle : "<< aruco_info.sight_angle[0]/3.14*180 << " [deg] "<< aruco_info.sight_angle[1]/3.14*180 << " [deg] " <<endl;
+        // cout << "Sight Angle : "<< aruco_info.sight_angle[0]/3.14*180 << " [deg] "<< aruco_info.sight_angle[1]/3.14*180 << " [deg] " <<endl;
     }else
     {
-        cout << "Aruco_ID: [" << aruco_info.aruco_num << "]  detected: [no] " << endl;
+        // cout << "Aruco_ID: [" << aruco_info.aruco_num << "]  detected: [no] " << endl;
     }
     
 
@@ -361,8 +375,7 @@ int main(int argc, char **argv)
 
         gimbal_att = gimbal_control_.get_gimbal_att();
         gimbal_att_deg = gimbal_att/PI*180;
-        cout << "gimbal_att    : " << [0] << " [deg] "<< gimbal_att_deg[1] << " [deg] "<< gimbal_att_deg[2] << " [deg] "<<endl;
-        
+        // cout << "gimbal_att    : " << gimbal_att_deg[0] << " [deg] "<< gimbal_att_deg[1] << " [deg] "<< gimbal_att_deg[2] << " [deg] "<<endl;
         gimbal_att_rate = gimbal_control_.get_gimbal_att_rate();
         gimbal_att_rate_deg = gimbal_att_rate/PI*180;
         // cout << "gimbal_att_rate    : " << gimbal_att_rate_deg[0] << " [deg/s] "<< gimbal_att_rate_deg[1] << " [deg/s] "<< gimbal_att_rate_deg[2] << " [deg/s] "<<endl;
@@ -377,8 +390,6 @@ int main(int argc, char **argv)
             // // gimbal_att_sp_deg[0] = 0.0;
             // gimbal_att_sp_deg[1] = std::atan2(landpad_det.pos_body_enu_frame[2], distance_2d)/PI*180;
             // gimbal_att_sp_deg[2] = 180 - std::atan2(landpad_det.pos_body_enu_frame[1], landpad_det.pos_body_enu_frame[0])/PI*180;
-            // cout << "gimbal_att    : " << [0] << " [deg] "<< gimbal_att_deg[1] << " [deg] "<< gimbal_att_deg[2] << " [deg] "<<endl;
-            // cout << "R" << R_camera_to_body << endl;
             gimbal_control_.send_mount_control_command(gimbal_att_sp);
         }
 
