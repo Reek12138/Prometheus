@@ -9,7 +9,7 @@
 #include <boost/format.hpp>
 
 //topic 头文件
-#include <prometheus_msgs/SwarmCommand_.h>
+#include <prometheus_msgs/SwarmCommandExp.h>
 
 #include <geometry_msgs/PoseStamped.h>
 
@@ -23,7 +23,7 @@ int swarm_num_uav;
 ros::Publisher command_pub[MAX_NUM+1];
 
 
-prometheus_msgs::SwarmCommand_ swarm_command[MAX_NUM+1];
+prometheus_msgs::SwarmCommandExp swarm_command[MAX_NUM+1];
 
 
 
@@ -78,7 +78,7 @@ int main(int argc, char **argv){
     
 
     for(int i = 1; i <= swarm_num_uav; i++){
-        command_pub[i] = nh.advertise<prometheus_msgs::SwarmCommand_>("/uav" + std::to_string(i) + "/prometheus/swarm_command", 1);
+        command_pub[i] = nh.advertise<prometheus_msgs::SwarmCommandExp>("/uav" + std::to_string(i) + "/prometheus/swarm_command", 1);
     }
 
     // ros::Duration(1.0).sleep();
@@ -101,7 +101,7 @@ int main(int argc, char **argv){
     }
     if(start_flag == 1){
         for(int i=1; i<=swarm_num_uav; i++){
-            swarm_command[i].Mode = prometheus_msgs::SwarmCommand_::Position_Control;
+            swarm_command[i].Mode = prometheus_msgs::SwarmCommandExp::Position_Control;
             swarm_command[i].source = "terminal_control";
             swarm_command[i].position_ref[0] = init_pos[i-1][0] - offset_pos[i-1][0];
             swarm_command[i].position_ref[1] = init_pos[i-1][1] - offset_pos[i-1][1];
@@ -121,8 +121,8 @@ int main(int argc, char **argv){
                 swarm_command[i].header.stamp = ros::Time::now();
                 swarm_command[i].header.frame_id = "world";
                 swarm_command[i].source = "traj_start";
-                swarm_command[i].Mode = prometheus_msgs::SwarmCommand_::Move;
-                swarm_command[i].Move_mode = prometheus_msgs::SwarmCommand_::XYZ_VEL;
+                swarm_command[i].Mode = prometheus_msgs::SwarmCommandExp::Move;
+                swarm_command[i].Move_mode = prometheus_msgs::SwarmCommandExp::XYZ_VEL;
                 swarm_command[i].velocity_ref = {0.0, 0.0, 0.0};
                 swarm_command[i].position_ref = {0.0, 0.0, 0.0};
                 swarm_command[i].acceleration_ref = {0.0, 0.0, 0.0};
@@ -133,7 +133,7 @@ int main(int argc, char **argv){
 
         }else if(start_flag == 0){
             for(int i=1; i<=swarm_num_uav; i++){
-                swarm_command[i].Mode = prometheus_msgs::SwarmCommand_::Hold;
+                swarm_command[i].Mode = prometheus_msgs::SwarmCommandExp::Hold;
                 swarm_command[i].source = "terminal_control";
                 swarm_command[i].velocity_ref = {0.0, 0.0, 0.0};
                 command_pub[i].publish(swarm_command[i]); //【发布】阵型

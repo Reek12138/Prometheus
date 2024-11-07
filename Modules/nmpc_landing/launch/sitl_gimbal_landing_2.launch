@@ -114,7 +114,7 @@
     </node>
 
 	<!-- run the gimbal_track.cpp -->
-	<node pkg="nmpc_landing" type="autonomous_landing_gimbal" name="autonomous_landing_gimbal" output="screen" launch-prefix="gnome-terminal --">
+	<node pkg="nmpc_landing" type="autonomous_landing_gimbal_2" name="autonomous_landing_gimbal_2" output="screen" launch-prefix="gnome-terminal --">
 		<param name="k_gimbal_p" value="0.1"/>
 		<param name="k_gimbal_i" value="0.2"/>
 		<param name="k_gimbal_d" value="0.1"/>
@@ -128,6 +128,10 @@
 		<param name="use_pad_height" value="false" />
 		<param name="pad_height" value="0.99" />
 		<!-- 起始点 -->
+		<!-- <param name="start_point_x" value="-8.0" />
+		<param name="start_point_y" value="0.0" />
+		<param name="start_point_z" value="6.0" /> -->
+
 		<param name="start_point_x" value="-9.0" />
 		<param name="start_point_y" value="-3.0" />
 		<param name="start_point_z" value="6.0" />
@@ -145,8 +149,8 @@
 		<param name="kdz_land" value="0.1" />
 
 		<!-- 动态降落控制参数 -->
-		<param name="dynamic_kpx_land" value="0.6" />
-		<param name="dynamic_kpy_land" value="0.6" />
+		<param name="dynamic_kpx_land" value="0.5" />
+		<param name="dynamic_kpy_land" value="0.5" />
 		<param name="dynamic_kpz_land" value="0.2" />
 
 		<param name="dynamic_kdx_land" value="0.0" />

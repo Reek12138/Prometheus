@@ -28,7 +28,7 @@ add_message_files(
   PositionReference.msg
   AttitudeReference.msg
   DroneState.msg
-  DroneState_.msg
+  DroneStateExp.msg
   ControlOutput.msg
   Message.msg
   LogMessage.msg
@@ -36,7 +36,7 @@ add_message_files(
   LogMessagePlanning.msg
   LogMessageDetection.msg
   SwarmCommand.msg
-  SwarmCommand_.msg
+  SwarmCommandExp.msg
   Formation.msg
   ArucoInfo.msg
   MultiArucoInfo.msg
