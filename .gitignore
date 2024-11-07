@@ -19,6 +19,10 @@ Modules/data/
 Modules/object_detection_oneshot/
 Modules/oriented_detection_segs/
 
+# 忽略 rosbag 文件
+Modules/nmpc_landing/rosbag/*
+
+
 # pytorch/python/numpy formats
 # *.pth
 *.pkl
