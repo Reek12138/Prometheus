@@ -15,7 +15,7 @@ def pose_publisher_line():
     pose_msg = ModelState()
     pose_msg.model_name = 'car_with_marker'
     rate = rospy.Rate(100)
-    linear_vel = 0.1
+    linear_vel = 0.2
     time = 0.0
     circle_radius = 3.0
     omega = math.fabs(linear_vel / circle_radius)    

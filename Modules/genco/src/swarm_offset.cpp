@@ -8,8 +8,8 @@
 #include <boost/format.hpp>
 
 //topic 头文件
-#include <prometheus_msgs/SwarmCommand_.h>
-#include <prometheus_msgs/DroneState_.h>
+#include <prometheus_msgs/SwarmCommandExp.h>
+#include <prometheus_msgs/DroneStateExp.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
@@ -28,16 +28,16 @@ ros::Subscriber state_listener[MAX_NUM+1];
 ros::Subscriber path_listener[MAX_NUM+1];
 ros::Subscriber odom_listener[MAX_NUM+1];
 
-prometheus_msgs::DroneState_ swarm_state[MAX_NUM+1];
+prometheus_msgs::DroneStateExp swarm_state[MAX_NUM+1];
 nav_msgs::Path drone_path[MAX_NUM+1];
 nav_msgs::Odometry drone_odom[MAX_NUM+1];
 
 vector<Eigen::Vector3f> offset_pos(4, Eigen::Vector3f::Zero());
-vector<prometheus_msgs::DroneState_> Drone_state_;
+vector<prometheus_msgs::DroneStateExp> Drone_state_;
 vector<Eigen::Vector3f> drone_position_, drone_vel_, drone_position_offset_;
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>声 明 函 数<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-void drone_state_cb(const prometheus_msgs::DroneState_::ConstPtr& msg, int id);
+void drone_state_cb(const prometheus_msgs::DroneStateExp::ConstPtr& msg, int id);
 void path_cb(const nav_msgs::Path::ConstPtr& msg, int id);
 
 void odom_cb(const nav_msgs::Odometry::ConstPtr& msg, int id);
@@ -73,10 +73,10 @@ int main(int argc, char **argv){
     
 
     for(int i = 1; i <= swarm_num_uav; i++){
-        state_listener[i] = nh.subscribe<prometheus_msgs::DroneState_>("/uav" + std::to_string(i) + "/prometheus/drone_state", 10, boost::bind(drone_state_cb,_1,i-1));
+        state_listener[i] = nh.subscribe<prometheus_msgs::DroneStateExp>("/uav" + std::to_string(i) + "/prometheus/drone_state", 10, boost::bind(drone_state_cb,_1,i-1));
         path_listener[i] = nh.subscribe<nav_msgs::Path>("/uav" + std::to_string(i) + "/prometheus/drone_trajectory", 10, boost::bind(path_cb,_1,i-1));
         odom_listener[i] = nh.subscribe<nav_msgs::Odometry>("/uav" + std::to_string(i) + "/prometheus/drone_odom", 10, boost::bind(odom_cb,_1,i-1));
-        state_pub[i] = nh.advertise<prometheus_msgs::DroneState_>("/uav" + std::to_string(i) + "/prometheus/drone_state_exp", 1);
+        state_pub[i] = nh.advertise<prometheus_msgs::DroneStateExp>("/uav" + std::to_string(i) + "/prometheus/drone_state_exp", 1);
         path_pub[i] = nh.advertise<nav_msgs::Path>("/uav" + std::to_string(i) + "/prometheus/drone_trajectory_exp", 10);
         odom_pub[i] = nh.advertise<nav_msgs::Odometry>("/uav" + std::to_string(i) + "/prometheus/drone_odom_exp", 10);
         
@@ -101,7 +101,7 @@ int main(int argc, char **argv){
 
 }
 
-void drone_state_cb(const prometheus_msgs::DroneState_::ConstPtr& msg, int id){
+void drone_state_cb(const prometheus_msgs::DroneStateExp::ConstPtr& msg, int id){
 
     if (id < 0 || id >= Drone_state_.size()) {
         ROS_ERROR("Invalid drone ID: %d", id);

@@ -17,7 +17,7 @@
 
 #include "mission_utils.h"
 #include "message_utils.h"
-#include "nmpc_ctr.h"
+#include "nmpc_ctr_3.h"
 #include "gimbal_control.h"
 
 
@@ -702,42 +702,6 @@ int main(int argc, char **argv)
 
                 // 发送吊仓指令
                 gimbal_control_.send_mount_control_command(gimbal_att_sp);
-                //【 调用nmpc求解】>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-                
-                Eigen::Vector2f goal_state ;
-                goal_state[0] = current_states[0] + k2 * landpad_det.pos_body_enu_frame[0];
-                goal_state[1] = current_states[1] + k2 * landpad_det.pos_body_enu_frame[1];
-                
-                // nmpc_ctr.set_goal_states(goal_state);
-                nmpc_ctr.set_goal_states(landing_pad_states);
-                
-                Eigen::Vector3f current_states2;
-                nmpc_ctr.opti_solution(current_states);
-
-                Eigen::Vector2f nmpc_controls = nmpc_ctr.get_controls();
-
-                Command_Now.header.stamp = ros::Time::now();
-                Command_Now.Command_ID = Command_Now.Command_ID + 1;
-                Command_Now.source = "nmpc_control";
-                Command_Now.Mode = prometheus_msgs::ControlCommand::Move;
-                Command_Now.Reference_State.Move_frame = prometheus_msgs::PositionReference::BODY_FRAME;
-                Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XYZ_VEL;
-                // xy轴采用mpc
-                Command_Now.Reference_State.velocity_ref[0] = nmpc_controls[0];
-                Command_Now.Reference_State.velocity_ref[1] = nmpc_controls[1];
-                Command_Now.Reference_State.yaw_ref = 0;
-                // z轴采用pd
-                if(distance_to_pad > dynamic_distance && abs(landpad_det.pos_body_enu_frame[2] ) > dynamic_height ){
-                Command_Now.Reference_State.velocity_ref[2] = kp_land[2] * landpad_det.pos_body_enu_frame[2] + kd_land[2] * velocity[2];
-                }
-                else if(distance_to_pad > dynamic_distance && abs(landpad_det.pos_body_enu_frame[2] ) < dynamic_height ){
-                    Command_Now.Reference_State.velocity_ref[2] = 0;
-                }
-
-                if (!hold_mode)
-                {
-                    command_pub.publish(Command_Now);
-                }
 
                 // 使用滑动窗口计算平均速度,适用于变速目标>>>>>>>>>>>>>>>>>>>>>>>
                 Eigen::Vector3f target_vel;
@@ -758,6 +722,53 @@ int main(int argc, char **argv)
                     vel_sum += target_vel;
                     ave_target_vel = vel_sum/buffer.size();
                 }
+
+                //【 调用nmpc求解】>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                // NMPC nmpc_ctr(predict_step, sample_time);
+                nmpc_ctr.set_my_nmpc_solver();
+                
+                Eigen::Vector2f goal_state ;
+                goal_state[0] = current_states[0] + k2 * landpad_det.pos_body_enu_frame[0];
+                goal_state[1] = current_states[1] + k2 * landpad_det.pos_body_enu_frame[1];
+                
+                // nmpc_ctr.set_goal_states(goal_state);
+                Eigen::Vector2f vels(_DroneState.velocity[0], _DroneState.velocity[1]) ;
+                Eigen::Vector2f goal_vels(ave_target_vel[0], ave_target_vel[1]) ;
+                nmpc_ctr.set_goal_states(landing_pad_states, current_states, vels, goal_vels);
+                
+                Eigen::Vector3f current_states2;
+                nmpc_ctr.opti_solution(current_states);
+
+                Eigen::Vector2f nmpc_controls = nmpc_ctr.get_controls();
+
+                Command_Now.header.stamp = ros::Time::now();
+                Command_Now.Command_ID = Command_Now.Command_ID + 1;
+                Command_Now.source = "nmpc_control";
+                Command_Now.Mode = prometheus_msgs::ControlCommand::Move;
+                Command_Now.Reference_State.Move_frame = prometheus_msgs::PositionReference::BODY_FRAME;
+                Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XYZ_VEL;
+
+                // xy轴采用mpc
+                Command_Now.Reference_State.velocity_ref[0] = nmpc_controls[0];
+                Command_Now.Reference_State.velocity_ref[1] = nmpc_controls[1];
+                Command_Now.Reference_State.yaw_ref = 0;
+                // z轴采用pd
+                if(distance_to_pad > dynamic_distance && abs(landpad_det.pos_body_enu_frame[2] ) > dynamic_height ){
+                Command_Now.Reference_State.velocity_ref[2] = kp_land[2] * landpad_det.pos_body_enu_frame[2] + kd_land[2] * velocity[2];
+                }
+                else if(distance_to_pad > dynamic_distance && abs(landpad_det.pos_body_enu_frame[2] ) < dynamic_height ){
+                    // Command_Now.Reference_State.Move_mode = prometheus_msgs::PositionReference::XY_VEL_Z_POS;
+
+                    Command_Now.Reference_State.velocity_ref[2] = 0;
+                    // Command_Now.Reference_State.position_ref[2] = dynamic_height;
+                }
+
+                if (!hold_mode)
+                {
+                    command_pub.publish(Command_Now);
+                }
+
+                
 
 
                 ROS_INFO("caculated target X: %f, Y: %f", goal_state[0], goal_state[1]);
@@ -859,13 +870,18 @@ int main(int argc, char **argv)
                 ROS_INFO("---------------------Dynamic landing-----------------------------------");
 
                  //【 调用nmpc求解】>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-                
+                // NMPC nmpc_ctr(predict_step, sample_time);
+                nmpc_ctr.set_my_nmpc_solver();
+
                 Eigen::Vector2f goal_state ;
                 goal_state[0] = current_states[0] + k2 * landpad_det.pos_body_enu_frame[0];
                 goal_state[1] = current_states[1] + k2 * landpad_det.pos_body_enu_frame[1];
                 
                 // nmpc_ctr.set_goal_states(goal_state);
-                nmpc_ctr.set_goal_states(landing_pad_states);
+                Eigen::Vector2f vels(_DroneState.velocity[0], _DroneState.velocity[1]) ;
+                Eigen::Vector2f goal_vels(ave_target_vel[0], ave_target_vel[1]) ;
+                // std::cout << "GOAL_VELS_NMPC = " << goal_vels << std::endl;
+                nmpc_ctr.set_goal_states(landing_pad_states, current_states, vels, goal_vels);
                 
                 Eigen::Vector3f current_states2;
                 nmpc_ctr.opti_solution(current_states);
@@ -890,7 +906,7 @@ int main(int argc, char **argv)
                     delta = delta * 0.8;
 
                     if(abs(landpad_det.pos_body_enu_frame[2] ) > dynamic_height/2){
-                        Command_Now.Reference_State.velocity_ref[2] =  kp_land[2] * landpad_det.pos_body_enu_frame[2] + kd_land[2] * velocity[2];
+                        Command_Now.Reference_State.velocity_ref[2] =  dynamic_kp_land[2] * landpad_det.pos_body_enu_frame[2] + kd_land[2] * velocity[2];
                     }else{
                         Command_Now.Reference_State.velocity_ref[2] = 0.0;
                     }

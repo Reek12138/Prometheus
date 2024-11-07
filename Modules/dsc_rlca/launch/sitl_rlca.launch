@@ -1,0 +1,80 @@
+<launch>
+    <!-- 无人机集群数量 -->
+	<arg name="swarm_num_uav" default="4"/>
+	<arg name="uav1_id" default="1"/>
+	<arg name="uav2_id" default="2"/>
+	<arg name="uav3_id" default="3"/>
+	<arg name="uav4_id" default="4"/>
+	<!-- 无人机初始位置和终点位置 -->
+	<arg name="uav1_init_x" default="5.0"/>
+    <arg name="uav1_init_y" default="5.0"/>
+    <arg name="uav1_init_z" default="3.0"/>
+    <!-- <arg name="uav1_init_z" default="20.0"/> -->
+
+	<arg name="uav1_end_x" default="-5.0"/>
+    <arg name="uav1_end_y" default="-5.0"/>
+    <arg name="uav1_end_z" default="3.0"/>
+
+    <arg name="uav2_init_x" default="5.0"/>
+    <arg name="uav2_init_y" default="-5.0"/>
+    <arg name="uav2_init_z" default="3.0"/>
+    <!-- <arg name="uav2_init_z" default="20.0"/> -->
+
+	<arg name="uav2_end_x" default="-5.0"/>
+    <arg name="uav2_end_y" default="5.0"/>
+    <arg name="uav2_end_z" default="3.0"/>
+
+    <arg name="uav3_init_x" default="-5.0"/>
+    <arg name="uav3_init_y" default="-5.0"/>
+    <arg name="uav3_init_z" default="3.0"/>
+    <!-- <arg name="uav3_init_z" default="20.0"/> -->
+
+	<arg name="uav3_end_x" default="5.0"/>
+    <arg name="uav3_end_y" default="5.0"/>
+    <arg name="uav3_end_z" default="3.0"/>
+
+    <arg name="uav4_init_x" default="-5.0"/>
+    <arg name="uav4_init_y" default="5.0"/>
+    <arg name="uav4_init_z" default="3.0"/>
+    <!-- <arg name="uav4_init_z" default="20.0"/> -->
+
+	<arg name="uav4_end_x" default="5.0"/>
+    <arg name="uav4_end_y" default="-5.0"/>
+    <arg name="uav4_end_z" default="3.0"/>
+
+    <node pkg="dsc_rlca" type="rlca_1.py" name="RLCA_node_1" output="screen" >
+        <param name="swarm_num_uav" value="4"/>
+        <param name="self_id" value="$(arg uav1_id)"/>
+        <param name="start_point_x" value="$(arg uav1_init_x)" />
+        <param name="start_point_y" value="$(arg uav1_init_y)" />
+        <param name="end_point_x" value="$(arg uav1_end_x)" />
+        <param name="end_point_y" value="$(arg uav1_end_y)" />
+    </node>
+
+    <node pkg="dsc_rlca" type="rlca_2.py" name="RLCA_node_2" output="screen" >
+        <param name="swarm_num_uav" value="4"/>
+        <param name="self_id" value="$(arg uav2_id)"/>
+        <param name="start_point_x" value="$(arg uav2_init_x)" />
+        <param name="start_point_y" value="$(arg uav2_init_y)" />
+        <param name="end_point_x" value="$(arg uav2_end_x)" />
+        <param name="end_point_y" value="$(arg uav2_end_y)" />
+    </node>
+
+    <node pkg="dsc_rlca" type="rlca_3.py" name="RLCA_node_3" output="screen" >
+        <param name="swarm_num_uav" value="4"/>
+        <param name="self_id" value="$(arg uav3_id)"/>
+        <param name="start_point_x" value="$(arg uav3_init_x)" />
+        <param name="start_point_y" value="$(arg uav3_init_y)" />
+        <param name="end_point_x" value="$(arg uav3_end_x)" />
+        <param name="end_point_y" value="$(arg uav3_end_y)" />
+    </node>
+
+    <node pkg="dsc_rlca" type="rlca_4.py" name="RLCA_node_4" output="screen" >
+        <param name="swarm_num_uav" value="4"/>
+        <param name="self_id" value="$(arg uav4_id)"/>
+        <param name="start_point_x" value="$(arg uav4_init_x)" />
+        <param name="start_point_y" value="$(arg uav4_init_y)" />
+        <param name="end_point_x" value="$(arg uav4_end_x)" />
+        <param name="end_point_y" value="$(arg uav4_end_y)" />
+    </node>
+</launch>

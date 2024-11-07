@@ -1,4 +1,4 @@
-#include "nmpc_ctr.h"
+#include "nmpc_ctr_3.h"
 
 NMPC::NMPC(int predict_step, float sample_time)
 {
@@ -121,15 +121,56 @@ void NMPC::set_my_nmpc_solver()
     casadi::SX m_R = casadi::SX::zeros(2,2);
     // m_Q(0,0) = 0.5;
     // m_Q(1,1) = 0.5;
-    // m_Q(0,0) = 5;
-    // m_Q(1,1) = 5;
+    // double y_min = 0.5;
+    // double y_max = 5;
+    // double k = 2;
+    // m_Q(0,0) = y_min + (y_max - y_min) / (1 + k * abs(m_goal_states[0] - m_states[0]));
+    // m_Q(1,1) = y_min + (y_max - y_min) / (1 + k * abs(m_goal_states[0] - m_states[0]));
 
-    m_Q(0,0) = 1.0;
-    m_Q(1,1) = 1.0;
+    // m_Q(0,0) = std::max(0.5, 5.0 * std::tanh(abs(m_goal_states[0] - m_states[0])) + 2.5 *abs(m_vels[0]));
+    // m_Q(1,1) = std::max(0.5, 5.0 * std::tanh(abs(m_goal_states[1] - m_states[1])) + 2.5 *abs(m_vels[1]));
+
+    m_Q(0,0) = std::max(1.5f, static_cast<float>(exp(std::min(static_cast<float>(3.0), m_goal_vels[0]))));
+    m_Q(1,1) = std::max(1.5f, static_cast<float>(exp(std::min(static_cast<float>(3.0), m_goal_vels[1]))));
+
+    // m_Q(0,0) = std::max(1.0f, static_cast<float>(exp(std::min(static_cast<float>(3.0), m_goal_vels[0]))));
+    // m_Q(1,1) = std::max(1.0f, static_cast<float>(exp(std::min(static_cast<float>(3.0), m_goal_vels[1]))));
+
+
+    // m_Q(0,0) += abs(m_goal_states[0] - m_states[0]) <= 2.0 ? 100.0*abs(m_goal_vels[0]) : 0;
+    // m_Q(1,1) += abs(m_goal_states[1] - m_states[1]) <= 2.0 ? 100.0*abs(m_goal_vels[1]) : 0;
+
+
+
+    // double v_y_min = 0.5;
+    // double v_y_max = 1;
+    // double k_ = 2;
+    // m_Q(0,0) -=  v_y_min + (v_y_max - v_y_min) / (1 + k_ * abs(m_vels[0]));
+    // m_Q(1,1) -=  v_y_min + (v_y_max - v_y_min) / (1 + k_ * abs(m_vels[1]));
+    
+    // m_Q(0,0) = std::max(0.5, 0.5 + std::tanh(abs(m_goal_states[0] - m_states[0])));
+    // m_Q(1,1) = std::max(0.5, 0.5 + std::tanh(abs(m_goal_states[1] - m_states[1])));
     // m_Q(2,2) = 0.1;
+    if(abs(m_goal_states[0] - m_states[0]) <= 2.0){
+        m_R(0,0) = 1.0 / exp(abs(m_goal_vels[0]));
+        // ROS_INFO("NMPC_m_goal_vels: [%f, %f]", m_goal_vels[0], m_goal_vels[1]);
 
-    m_R(0,0) = 1.0;
-    m_R(1,1) = 1.0;
+        // m_R(0,0) = 0.5;
+        // m_R(0,0) = abs(m_goal_states[0] - m_states[0]);
+    }else{
+        m_R(0,0) = 1.0;
+    }
+
+    if(abs(m_goal_states[1] - m_states[1]) <= 2.0){
+        // m_R(1,1) = 0.5;
+        m_R(1,1) = 1.0 / exp(abs(m_goal_vels[1]));
+        // std::cout<< "NMPC_VELS = " << m_goal_vels << std::endl;
+        // m_R(1,1) = abs(m_goal_states[1] - m_states[1]);
+    }else{
+        m_R(1,1) = 1.0;
+    }
+    // m_R(0,0) = std::max(0.5, 0.5 *m_vels[0]);
+    // m_R(1,1) = std::max(0.5, 0.5 *m_vels[1]);
     // m_R(2,2) = 0.05;
 
     
@@ -149,6 +190,7 @@ void NMPC::set_my_nmpc_solver()
                             casadi::SX::mtimes({controls_err.T(),m_R,controls_err});
     }
     //添加终端约束条件
+    
     casadi::SX constraints = X(casadi::Slice(), m_predict_step) - opt_para(casadi::Slice(2, 4, 1));
 
 
@@ -174,9 +216,12 @@ void NMPC::set_my_nmpc_solver()
 }
 
 //设定目标点
-void NMPC::set_goal_states(Eigen::Matrix<float, 2, 1> goal_states)
+void NMPC::set_goal_states(Eigen::Matrix<float, 2, 1> goal_states, Eigen::Matrix<float, 2, 1> current_states, Eigen::Matrix<float, 2, 1> current_vels, Eigen::Matrix<float, 2, 1> goal_vels)
 {
     m_goal_states = goal_states;
+    m_states = current_states;
+    m_vels = current_vels;
+    m_goal_vels = goal_vels;
 }
 
 void NMPC::opti_solution(Eigen::Matrix<float,2,1> current_states)
@@ -188,27 +233,50 @@ void NMPC::opti_solution(Eigen::Matrix<float,2,1> current_states)
     // vx约束
     for (int k = 0; k < m_predict_step; k++)
     {
-        // lbx.push_back(-0.6);
         lbx.push_back(-2.0);
-
         ubx.push_back(2.0);
+        
+        //used
+        // lbx.push_back(-1.0 - std::min(2.0, static_cast<double>(abs(m_goal_vels[0]))));
+        // ubx.push_back(1.0 + std::min(2.0, static_cast<double>(abs(m_goal_vels[0]))));
+
+
+        // ubx.push_back(std::max(1.0, 5.0 * std::tanh(abs(m_goal_states[0] - m_states[0]))));
+        // lbx.push_back(-1.0 * std::max(0.3, exp(abs(m_goal_states[0] - m_states[0]))) );
+
+        // ubx.push_back(std::max(0.3, exp(abs(m_goal_states[0] - m_states[0]))));
+        // lbx.push_back(-0.5 - 2.0 * std::tanh(abs(m_goal_states[0] - m_states[0])));
+
+        // ubx.push_back(0.5 + 2.0 * std::tanh(abs(m_goal_states[0] - m_states[0])));
     }
     // vy约束
      for (int k = 0; k < m_predict_step; k++)
     {
-        // lbx.push_back(-0.6);
         lbx.push_back(-2.0);
-
         ubx.push_back(2.0);
-    }
-    // // vyaw约束
-    // for (int k = 0; k < m_predict_step; k++)
-    // {
-    //     lbx.push_back(-M_PI/2);
 
-    //     ubx.push_back(M_PI/2);
-    // }
-    // for(int j=0;j<3;j++)
+        //used
+        // lbx.push_back(-1.0 - std::min(2.0, static_cast<double>(abs(m_goal_vels[1]))));
+        // ubx.push_back(1.0 + std::min(2.0, static_cast<double>(abs(m_goal_vels[1]))));
+
+
+        // lbx.push_back(-0.4 - std::min(2.0, static_cast<double>(abs(m_goal_vels[1]))));
+        // ubx.push_back(0.4 + std::min(2.0, static_cast<double>(abs(m_goal_vels[1]))));
+
+        // lbx.push_back(-0.6);
+        // lbx.push_back(-1.0 * std::max(0.3, 5.0 *  std::tanh(abs(m_goal_states[1] - m_states[1]))) );
+
+        // ubx.push_back(std::max(0.3, 5.0 * std::tanh(abs(m_goal_states[1] - m_states[1]))));
+
+        // lbx.push_back(-1.0 * std::max(0.3, exp(abs(m_goal_states[1] - m_states[1]))) );
+
+        // ubx.push_back(std::max(0.3, exp(abs(m_goal_states[1] - m_states[1]))));
+
+        // lbx.push_back(-1.5 -  std::tanh(abs(m_goal_states[1] - m_states[1])));
+
+        // ubx.push_back(1.5 + std::tanh(abs(m_goal_states[1] - m_states[1])));
+    }
+    
     for(int j=0;j<2;j++)
     {
         parameters.push_back(current_states[j]);

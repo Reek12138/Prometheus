@@ -5,8 +5,8 @@
 
 #include <prometheus_msgs/Message.h>
 #include <prometheus_msgs/ControlCommand.h>
-#include <prometheus_msgs/SwarmCommand_.h>
-#include <prometheus_msgs/DroneState_.h>
+#include <prometheus_msgs/SwarmCommandExp.h>
+#include <prometheus_msgs/DroneStateExp.h>
 #include <prometheus_msgs/PositionReference.h>
 #include <prometheus_msgs/AttitudeReference.h>
 #include <prometheus_msgs/ControlOutput.h>
